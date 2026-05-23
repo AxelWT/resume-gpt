@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>resume-gpt</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Microsoft YaHei", sans-serif;
+    background: #f0f2f5;
+    color: #333;
+    height: 100vh;
+    overflow: hidden;
+  }
+  .app-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #fff;
+    padding: 16px 24px;
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  }
+  .app-header span { opacity: 0.85; font-size: 14px; font-weight: 400; margin-left: auto; }
+  .app-body { display: flex; height: calc(100vh - 56px); }
+  .left-panel {
+    width: 380px;
+    min-width: 380px;
+    background: #fff;
+    border-right: 1px solid #e8e8e8;
+    overflow-y: auto;
+    padding: 20px;
+  }
+  .right-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .report-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px;
+  }
+  .sidebar {
+    height: 280px;
+    min-height: 200px;
+    border-top: 1px solid #e8e8e8;
+    background: #fafafa;
+    overflow-y: auto;
+    padding: 16px 24px;
+  }
+  .sidebar h3 {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .sidebar h3 .count { color: #999; font-weight: 400; font-size: 12px; }
+  .sidebar-item {
+    padding: 8px 12px;
+    margin-bottom: 6px;
+    background: #fff;
+    border: 1px solid #eee;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all .15s;
+  }
+  .sidebar-item:hover { border-color: #667eea; color: #667eea; }
+  .sidebar-item .title { font-weight: 500; }
+  .sidebar-item .preview { font-size: 12px; color: #999; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sidebar-item .full-content { display: none; margin-top: 8px; font-size: 13px; color: #333; line-height: 1.6; white-space: pre-wrap; }
+  .sidebar-item.active .full-content { display: block; }
+  .sidebar-item.active { border-color: #667eea; background: #f8f9ff; }
+
+  /* Form */
+  .form-group { margin-bottom: 16px; }
+  .form-group label { display: block; font-size: 13px; font-weight: 500; color: #555; margin-bottom: 6px; }
+  .form-group input, .form-group textarea {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #d9d9d9;
+    border-radius: 6px;
+    font-size: 13px;
+    transition: border .2s;
+    outline: none;
+  }
+  .form-group input:focus, .form-group textarea:focus { border-color: #667eea; box-shadow: 0 0 0 2px rgba(102,126,234,0.15); }
+  .form-group textarea { resize: vertical; min-height: 60px; font-family: inherit; }
+
+  .section-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #444;
+    margin: 20px 0 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  .section-title:first-of-type { margin-top: 0; }
+
+  .checkbox-group { display: flex; flex-direction: column; gap: 8px; }
+  .checkbox-group label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    cursor: pointer;
+    padding: 6px 10px;
+    border-radius: 6px;
+    transition: background .15s;
+  }
+  .checkbox-group label:hover { background: #f5f5ff; }
+  .checkbox-group input[type="checkbox"] { width: 16px; height: 16px; accent-color: #667eea; }
+
+  .advanced-toggle {
+    font-size: 12px;
+    color: #667eea;
+    cursor: pointer;
+    user-select: none;
+    margin-top: 4px;
+  }
+  .advanced-toggle:hover { text-decoration: underline; }
+  .advanced-options { display: none; margin-top: 8px; }
+  .advanced-options.show { display: block; }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    padding: 10px 16px;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .btn-primary { background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; }
+  .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(102,126,234,0.4); }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+  .btn-secondary {
+    background: #f5f5f5;
+    color: #666;
+    border: 1px solid #d9d9d9;
+    padding: 6px 12px;
+    width: auto;
+    font-size: 12px;
+    border-radius: 6px;
+  }
+  .btn-secondary:hover { border-color: #667eea; color: #667eea; }
+  .btn-test { margin-top: 8px; }
+
+  /* Report */
+  .report-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: #bbb;
+    font-size: 16px;
+  }
+  .report-empty .icon { font-size: 48px; margin-bottom: 12px; opacity: 0.5; }
+
+  .report-loading {
+    text-align: center;
+    padding: 60px 20px;
+  }
+  .spinner {
+    display: inline-block;
+    width: 40px;
+    height: 40px;
+    border: 3px solid #e8e8e8;
+    border-top-color: #667eea;
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+    margin-bottom: 16px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .report-loading .msg { color: #666; font-size: 14px; }
+  .report-loading .progress-bar {
+    width: 300px;
+    max-width: 80%;
+    height: 6px;
+    background: #e8e8e8;
+    border-radius: 3px;
+    margin: 16px auto 0;
+    overflow: hidden;
+  }
+  .report-loading .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #667eea, #764ba2);
+    border-radius: 3px;
+    transition: width .5s ease;
+  }
+
+  .report-error {
+    text-align: center;
+    padding: 60px 20px;
+    color: #e74c3c;
+  }
+  .report-error .icon { font-size: 48px; margin-bottom: 12px; }
+  .report-error .detail { font-size: 14px; margin-top: 8px; color: #666; }
+
+  /* Module card */
+  .module-card {
+    background: #fff;
+    border: 1px solid #e8e8e8;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  .module-card h2 {
+    font-size: 17px;
+    color: #333;
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #667eea;
+    display: inline-block;
+  }
+  .module-card .subtitle { font-size: 13px; color: #999; margin-bottom: 12px; }
+  .module-card .score {
+    display: inline-block;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: #fff;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 12px;
+  }
+  .module-card .summary-text { font-size: 14px; line-height: 1.7; color: #444; margin-bottom: 16px; }
+  .module-card .key-points { list-style: none; }
+  .module-card .key-points li {
+    padding: 10px 14px;
+    margin-bottom: 8px;
+    background: #f8f9ff;
+    border-radius: 8px;
+    border-left: 3px solid #667eea;
+  }
+  .module-card .key-points .name { font-weight: 600; font-size: 14px; }
+  .module-card .key-points .freq { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 10px; margin-left: 6px; }
+  .freq-high { background: #fff1f0; color: #e74c3c; }
+  .freq-mid { background: #fff7e6; color: #fa8c16; }
+  .freq-low { background: #f6ffed; color: #52c41a; }
+  .module-card .key-points .desc { font-size: 13px; color: #666; margin-top: 4px; }
+
+  .module-card .question-item {
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    background: #f8f9ff;
+    border-radius: 8px;
+    border-left: 3px solid #764ba2;
+  }
+  .module-card .question-item .q { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+  .module-card .question-item .meta { font-size: 12px; color: #999; margin-bottom: 4px; }
+  .module-card .question-item .ans { font-size: 13px; color: #555; line-height: 1.6; margin-top: 6px; padding-top: 6px; border-top: 1px solid #eee; }
+
+  .module-card .suggestion-item {
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    background: #fffbe6;
+    border-radius: 8px;
+    border-left: 3px solid #faad14;
+  }
+  .module-card .suggestion-item .s-title { font-weight: 600; font-size: 14px; }
+  .module-card .suggestion-item .priority { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 10px; margin-left: 6px; }
+  .priority-high { background: #fff1f0; color: #e74c3c; }
+  .priority-mid { background: #fff7e6; color: #fa8c16; }
+  .priority-low { background: #f6ffed; color: #52c41a; }
+  .module-card .suggestion-item .detail { font-size: 13px; color: #555; margin-top: 4px; line-height: 1.6; }
+
+  .module-card .tag-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .module-card .tag-list .tag {
+    background: #f0f5ff;
+    color: #667eea;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    top: 70px;
+    right: 20px;
+    padding: 12px 20px;
+    border-radius: 8px;
+    color: #fff;
+    font-size: 14px;
+    z-index: 9999;
+    opacity: 0;
+    transform: translateX(50px);
+    transition: all .3s ease;
+    pointer-events: none;
+  }
+  .toast.show { opacity: 1; transform: translateX(0); }
+  .toast.error { background: #e74c3c; }
+  .toast.success { background: #52c41a; }
+  .toast.info { background: #667eea; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #d9d9d9; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #bbb; }
+
+  @media (max-width: 768px) {
+    .left-panel { width: 100%; min-width: unset; border-right: none; border-bottom: 1px solid #e8e8e8; }
+    .app-body { flex-direction: column; }
+    .sidebar { height: auto; max-height: 200px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+
+<div class="app-header">
+  🧠 resume-gpt
+  <span>面试辅助分析工具</span>
+</div>
+
+<div class="app-body">
+  <!-- Left Panel -->
+  <div class="left-panel">
+    <div class="section-title">🔌 模型配置</div>
+    <div class="form-group">
+      <label>API 地址 (base_url)</label>
+      <input type="text" id="baseUrl" placeholder="https://open.bigmodel.cn/api/paas/v4" value="https://open.bigmodel.cn/api/paas/v4">
+    </div>
+    <div class="form-group">
+      <label>API Key</label>
+      <input type="password" id="apiKey" placeholder="输入你的 API Key">
+    </div>
+    <div class="form-group">
+      <label>模型名称</label>
+      <input type="text" id="modelName" placeholder="glm-4.6" value="glm-4.6">
+    </div>
+    <button class="btn btn-secondary btn-test" onclick="testConfig()">测试连接</button>
+
+    <div class="section-title">🔍 搜索配置</div>
+    <div class="form-group">
+      <label>公司 + 岗位</label>
+      <input type="text" id="query" placeholder="例: 字节跳动 后端开发">
+    </div>
+    <div class="form-group">
+      <label>上传简历 (PDF)</label>
+      <input type="file" id="resumeFile" accept=".pdf">
+    </div>
+
+    <div class="section-title">📋 分析模块</div>
+    <div class="checkbox-group">
+      <label><input type="checkbox" value="summary" checked> 面经总结与考点分析</label>
+      <label><input type="checkbox" value="mock_interview"> 模拟面试题目预测</label>
+      <label><input type="checkbox" value="resume_tips"> 简历优化建议</label>
+    </div>
+
+    <div class="advanced-toggle" onclick="toggleAdvanced()">▸ 高级选项</div>
+    <div class="advanced-options" id="advancedOptions">
+      <div class="form-group">
+        <label>最大抓取面经数量</label>
+        <input type="number" id="maxCount" value="10" min="1" max="50">
+      </div>
+    </div>
+
+    <div style="margin-top: 20px;">
+      <button class="btn btn-primary" id="startBtn" onclick="startAnalysis()">🚀 开始分析</button>
+    </div>
+  </div>
+
+  <!-- Right Panel -->
+  <div class="right-panel">
+    <div class="report-area" id="reportArea">
+      <div class="report-empty">
+        <div class="icon">📊</div>
+        <div>配置参数后点击「开始分析」</div>
+      </div>
+    </div>
+    <div class="sidebar" id="sidebar">
+      <h3>📝 原始面经题库 <span class="count" id="expCount"></span></h3>
+      <div id="expList" style="color: #ccc; font-size: 13px;">暂无数据，分析完成后将在此展示</div>
+    </div>
+  </div>
+</div>
+
+<script>
+let taskId = null;
+let polling = false;
+let resumeText = '';
+
+function showToast(msg, type = 'info') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast ' + type + ' show';
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function toggleAdvanced() {
+  const el = document.getElementById('advancedOptions');
+  el.classList.toggle('show');
+}
+
+async function testConfig() {
+  const baseUrl = document.getElementById('baseUrl').value.trim();
+  const apiKey = document.getElementById('apiKey').value.trim();
+  const modelName = document.getElementById('modelName').value.trim();
+  if (!baseUrl || !apiKey || !modelName) {
+    showToast('请填写完整的模型配置', 'error');
+    return;
+  }
+  try {
+    const resp = await fetch('/api/test-config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ base_url: baseUrl, api_key: apiKey, model_name: modelName }),
+    });
+    if (!resp.ok) {
+      const err = await resp.json();
+      throw new Error(err.detail || '连接失败');
+    }
+    showToast('✅ 连接成功！', 'success');
+  } catch (e) {
+    showToast('❌ ' + e.message, 'error');
+  }
+}
+
+async function startAnalysis() {
+  const baseUrl = document.getElementById('baseUrl').value.trim();
+  const apiKey = document.getElementById('apiKey').value.trim();
+  const modelName = document.getElementById('modelName').value.trim();
+  const query = document.getElementById('query').value.trim();
+  const maxCount = parseInt(document.getElementById('maxCount').value) || 10;
+
+  if (!baseUrl || !apiKey || !modelName) {
+    showToast('请填写完整的模型配置', 'error');
+    return;
+  }
+  if (!query) {
+    showToast('请输入公司+岗位搜索词', 'error');
+    return;
+  }
+
+  const modules = [];
+  document.querySelectorAll('.checkbox-group input:checked').forEach(cb => modules.push(cb.value));
+  if (modules.length === 0) {
+    showToast('请至少选择一个分析模块', 'error');
+    return;
+  }
+
+  // Upload resume if selected
+  const fileInput = document.getElementById('resumeFile');
+  resumeText = '';
+  if (fileInput.files.length > 0) {
+    try {
+      const formData = new FormData();
+      formData.append('file', fileInput.files[0]);
+      const uploadResp = await fetch('/api/upload-resume', { method: 'POST', body: formData });
+      if (!uploadResp.ok) {
+        const err = await uploadResp.json();
+        showToast('简历上传失败: ' + err.detail, 'error');
+        return;
+      }
+      const uploadData = await uploadResp.json();
+      resumeText = uploadData.text;
+      showToast('✅ 简历解析成功 (' + resumeText.length + ' 字符)', 'success');
+    } catch (e) {
+      showToast('简历上传失败: ' + e.message, 'error');
+      return;
+    }
+  }
+
+  if (modules.includes('resume_tips') && !resumeText) {
+    showToast('选择「简历优化建议」模块需要上传简历', 'error');
+    return;
+  }
+
+  document.getElementById('startBtn').disabled = true;
+  document.getElementById('startBtn').textContent = '⏳ 分析中...';
+
+  try {
+    const resp = await fetch('/api/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        base_url: baseUrl,
+        api_key: apiKey,
+        model_name: modelName,
+        query: query,
+        modules: modules,
+        max_count: maxCount,
+        resume_text: resumeText,
+      }),
+    });
+    if (!resp.ok) {
+      const err = await resp.json();
+      throw new Error(err.detail || '启动分析失败');
+    }
+    const data = await resp.json();
+    taskId = data.task_id;
+    showReportLoading();
+    pollStatus();
+  } catch (e) {
+    showToast('❌ ' + e.message, 'error');
+    document.getElementById('startBtn').disabled = false;
+    document.getElementById('startBtn').textContent = '🚀 开始分析';
+  }
+}
+
+async function pollStatus() {
+  if (!taskId) return;
+  polling = true;
+  while (polling) {
+    try {
+      const resp = await fetch('/api/status/' + taskId);
+      if (!resp.ok) break;
+      const data = await resp.json();
+
+      if (data.status === 'running' || data.status === 'pending') {
+        updateProgress(data.progress || 0, data.message || '');
+      }
+
+      if (data.status === 'completed') {
+        polling = false;
+        document.getElementById('startBtn').disabled = false;
+        document.getElementById('startBtn').textContent = '🚀 开始分析';
+        if (data.result) {
+          if (data.result.error) {
+            showReportError(data.result.error);
+          } else {
+            renderReport(data.result);
+          }
+        }
+        return;
+      }
+
+      if (data.status === 'failed') {
+        polling = false;
+        document.getElementById('startBtn').disabled = false;
+        document.getElementById('startBtn').textContent = '🚀 开始分析';
+        showReportError(data.error || '分析过程出错');
+        return;
+      }
+    } catch (e) {
+      polling = false;
+      document.getElementById('startBtn').disabled = false;
+      document.getElementById('startBtn').textContent = '🚀 开始分析';
+      showReportError('连接失败: ' + e.message);
+      return;
+    }
+    await new Promise(r => setTimeout(r, 1500));
+  }
+}
+
+function showReportLoading() {
+  const area = document.getElementById('reportArea');
+  area.innerHTML = '<div class="report-loading"><div class="spinner"></div><div class="msg" id="progressMsg">正在准备分析...</div><div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div></div>';
+}
+
+function updateProgress(pct, msg) {
+  const fill = document.getElementById('progressFill');
+  const msgEl = document.getElementById('progressMsg');
+  if (fill) fill.style.width = Math.min(pct, 100) + '%';
+  if (msgEl && msg) msgEl.textContent = msg;
+}
+
+function showReportError(msg) {
+  const area = document.getElementById('reportArea');
+  area.innerHTML = '<div class="report-error"><div>❌</div><div style="font-size:18px;font-weight:600;margin-top:8px;">分析失败</div><div class="detail">' + escapeHtml(msg) + '</div></div>';
+}
+
+function renderReport(result) {
+  const area = document.getElementById('reportArea');
+  const modules = result.modules || {};
+  let html = '';
+
+  if (modules.summary) html += renderSummary(modules.summary);
+  if (modules.mock_interview) html += renderMockInterview(modules.mock_interview);
+  if (modules.resume_tips) html += renderResumeTips(modules.resume_tips);
+
+  if (!html) {
+    html = '<div class="report-empty"><div class="icon">📊</div><div>分析完成，但未选择分析模块</div></div>';
+  }
+
+  area.innerHTML = html;
+
+  // Render sidebar
+  renderSidebar(result.experiences || []);
+}
+
+function renderSummary(data) {
+  if (data.error) return '<div class="module-card"><h2>面经总结与考点分析</h2><p style="color:#999;">' + escapeHtml(data.error) + '</p></div>';
+  const points = (data.key_points || []).map(p =>
+    `<li><div class="name">${escapeHtml(p.name)} <span class="freq freq-${p.frequency === '高频' ? 'high' : p.frequency === '中频' ? 'mid' : 'low'}">${escapeHtml(p.frequency)}</span></div><div class="desc">${escapeHtml(p.description || '')}</div></li>`
+  ).join('');
+  const cats = (data.categories || []).map(c =>
+    `<div style="margin-bottom:10px;"><strong>${escapeHtml(c.name)}</strong><div class="tag-list">${(c.items || []).map(i => `<span class="tag">${escapeHtml(i)}</span>`).join('')}</div></div>`
+  ).join('');
+  return `<div class="module-card">
+    <h2>面经总结与考点分析</h2>
+    <p class="summary-text">${escapeHtml(data.summary || '')}</p>
+    ${data.total_experiences ? `<p class="subtitle">基于 ${data.total_experiences} 篇面经分析</p>` : ''}
+    <h3 style="font-size:15px;margin-bottom:10px;">📌 高频考点</h3>
+    <ul class="key-points">${points}</ul>
+    ${cats ? `<h3 style="font-size:15px;margin:16px 0 10px;">📂 知识分类</h3>${cats}` : ''}
+  </div>`;
+}
+
+function renderMockInterview(data) {
+  if (data.error) return '<div class="module-card"><h2>模拟面试题目预测</h2><p style="color:#999;">' + escapeHtml(data.error) + '</p></div>';
+  const cats = (data.categories || []).map(c => {
+    const qs = (c.questions || []).map(q =>
+      `<div class="question-item">
+        <div class="q">${escapeHtml(q.question)}</div>
+        <div class="meta">${escapeHtml(q.reason || '')} · 难度: ${escapeHtml(q.difficulty || '')}</div>
+        ${q.suggested_answer ? `<div class="ans"><strong>回答思路：</strong>${escapeHtml(q.suggested_answer)}</div>` : ''}
+      </div>`
+    ).join('');
+    return `<h3 style="font-size:15px;margin:12px 0 8px;color:#764ba2;">${escapeHtml(c.type)}</h3>${qs}`;
+  }).join('');
+  return `<div class="module-card">
+    <h2>模拟面试题目预测</h2>
+    ${data.total_questions ? `<p class="subtitle">共预测 ${data.total_questions} 道题目</p>` : ''}
+    ${cats}
+  </div>`;
+}
+
+function renderResumeTips(data) {
+  if (data.error) return '<div class="module-card"><h2>简历优化建议</h2><p style="color:#999;">' + escapeHtml(data.error) + '</p></div>';
+  const sug = (data.suggestions || []).map(s =>
+    `<div class="suggestion-item">
+      <div class="s-title">[${escapeHtml(s.category || '')}] ${escapeHtml(s.title)} <span class="priority priority-${s.priority === '高' ? 'high' : s.priority === '中' ? 'mid' : 'low'}">${escapeHtml(s.priority)}</span></div>
+      <div class="detail">${escapeHtml(s.detail || '')}</div>
+    </div>`
+  ).join('');
+  const addTags = (data.keywords_to_add || []).map(k => `<span class="tag">${escapeHtml(k)}</span>`).join('');
+  const highTags = (data.keywords_to_highlight || []).map(k => `<span class="tag">${escapeHtml(k)}</span>`).join('');
+  return `<div class="module-card">
+    <h2>简历优化建议</h2>
+    <p class="summary-text">${escapeHtml(data.match_analysis || '')}</p>
+    ${data.match_score !== undefined ? `<div class="score">匹配度: ${data.match_score}/100</div>` : ''}
+    <h3 style="font-size:15px;margin-bottom:10px;">💡 优化建议</h3>
+    ${sug || '<p style="color:#999;">暂无建议</p>'}
+    ${addTags ? `<h3 style="font-size:15px;margin:16px 0 8px;">🏷️ 建议补充技能词</h3><div class="tag-list">${addTags}</div>` : ''}
+    ${highTags ? `<h3 style="font-size:15px;margin:16px 0 8px;">⭐ 已有亮点</h3><div class="tag-list">${highTags}</div>` : ''}
+  </div>`;
+}
+
+function renderSidebar(experiences) {
+  const list = document.getElementById('expList');
+  const count = document.getElementById('expCount');
+  count.textContent = '(' + experiences.length + ' 篇)';
+
+  if (experiences.length === 0) {
+    list.innerHTML = '<div style="color: #ccc; font-size: 13px;">暂无面经数据</div>';
+    return;
+  }
+
+  list.innerHTML = experiences.map((exp, i) =>
+    `<div class="sidebar-item" onclick="toggleExp(this)">
+      <div class="title">${escapeHtml(exp.title || '面经 ' + (i+1))}</div>
+      ${exp.tags && exp.tags.length ? `<div style="font-size:11px;color:#999;margin-top:2px;">${exp.tags.join(' · ')}</div>` : ''}
+      <div class="full-content">${escapeHtml(exp.content || '暂无内容')}</div>
+    </div>`
+  ).join('');
+}
+
+function toggleExp(el) {
+  el.classList.toggle('active');
+}
+
+function escapeHtml(text) {
+  if (!text) return '';
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+</script>
+</body>
+</html>
