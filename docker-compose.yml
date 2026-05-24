@@ -1,6 +1,6 @@
 services:
   app:
-    image: ghcr.io/${GITHUB_REPOSITORY:-your-org/ai-interview-coach}:latest
+    image: ghcr.io/axelwt/resume-gpt:latest
     build: .
     ports:
       - "8000:8000"

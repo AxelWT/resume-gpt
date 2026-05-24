@@ -52,7 +52,7 @@ jobs:
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
-            cd ${{ secrets.DEPLOY_PATH || '/app/ai-interview-coach' }}
+            cd ${{ secrets.DEPLOY_PATH || '/app/resume-gpt' }}
             docker compose pull
             docker compose up -d --remove-orphans
             docker image prune -f
