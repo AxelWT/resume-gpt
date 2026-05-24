@@ -29,17 +29,17 @@ AI 驱动的面试辅助分析工具。收到面试邀请后，通过爬取网�
                │ HTTP (REST API)              │
                ▼                              ▼
 ┌──────────────────────────────┐  ┌──────────────────┐
-│      FastAPI 后端服务          │  │  WebSocket/轮询   │
+│      FastAPI 后端服务          │  │  WebSocket/轮询  │
 │                              │  │  (任务进度查询)    │
 │  POST /api/analyze           │  │                  │
-│  POST /api/test-config       │  │  GET /api/status  │
+│  POST /api/test-config       │  │  GET /api/status │
 │  POST /api/upload-resume     │  │                  │
 └──────┬───────────────┬───────┘  └──────────────────┘
        │               │
        ▼               ▼
 ┌──────────┐  ┌────────────────┐
-│ 牛客网爬虫│  │  AI 模型客户端   │
-│ (httpx +  │  │  (OpenAI 兼容)  │
+│ 牛客网爬虫 │  │  AI 模型客户端   │
+│ (httpx + │  │  (OpenAI 兼容)  │
 │  BS4)    │  │                │
 └──────────┘  └────────────────┘
                      │
