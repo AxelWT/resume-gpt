@@ -5,41 +5,8 @@ on:
     branches: [main]
   workflow_dispatch:
 
-env:
-  REGISTRY: ghcr.io
-
 jobs:
-  build-and-push:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-
-    steps:
-      - uses: actions/checkout@v4.2.2
-
-      - name: Generate image metadata
-        id: meta
-        run: echo "image=${GITHUB_REPOSITORY@L}" >> "$GITHUB_OUTPUT"
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3.4.0
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v6.18.0
-        with:
-          context: .
-          push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ steps.meta.outputs.image }}:latest
-            ${{ env.REGISTRY }}/${{ steps.meta.outputs.image }}:${{ github.sha }}
-
   deploy:
-    needs: build-and-push
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
 
@@ -56,27 +23,32 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           envs: OPENAI_API_KEY,DOCKER_PROXY
           script: |
+            set -e
             cd ${{ secrets.DEPLOY_PATH || '/app/resume-gpt' }}
+
+            # 拉取最新代码
+            git pull origin main
+
+            # 写入环境变量
             echo "OPENAI_API_KEY=$OPENAI_API_KEY" > .env
 
-            # 配置 Docker 代理（如果 Secret 已配置）
+            # 配置 Docker 代理用于拉取基础镜像（如果 Secret 已配置）
             if [ -n "$DOCKER_PROXY" ]; then
               sudo mkdir -p /etc/systemd/system/docker.service.d
-              sudo tee /etc/systemd/system/docker.service.d/proxy.conf > /dev/null <<'PROXY'
+              cat <<PROXYEOF | sudo tee /etc/systemd/system/docker.service.d/proxy.conf > /dev/null
             [Service]
             Environment="HTTP_PROXY=$DOCKER_PROXY" "HTTPS_PROXY=$DOCKER_PROXY" "NO_PROXY=localhost,127.0.0.1"
-            PROXY
-              # 替换占位符为实际代理地址
-              sudo sed -i "s|\$DOCKER_PROXY|$DOCKER_PROXY|g" /etc/systemd/system/docker.service.d/proxy.conf
+            PROXYEOF
               sudo systemctl daemon-reload
               sudo systemctl restart docker
             fi
 
-            docker compose pull
+            # 构建并启动（--pull 始终拉取最新基础镜像）
+            docker compose build --pull
             docker compose up -d --remove-orphans
             docker image prune -f
 
-            # 清理代理配置，恢复 Docker 原始状态
+            # 清理代理配置
             if [ -n "$DOCKER_PROXY" ]; then
               sudo rm -f /etc/systemd/system/docker.service.d/proxy.conf
               sudo systemctl daemon-reload
