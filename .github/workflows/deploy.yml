@@ -48,37 +48,22 @@ jobs:
         uses: appleboy/ssh-action@v1.0.3
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          DOCKER_PROXY: ${{ secrets.DOCKER_PROXY }}
+          DOCKER_HTTP_PROXY: ${{ secrets.DOCKER_HTTP_PROXY }}
+          DOCKER_HTTPS_PROXY: ${{ secrets.DOCKER_HTTPS_PROXY }}
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           port: ${{ secrets.DEPLOY_PORT || '22' }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          envs: OPENAI_API_KEY,DOCKER_PROXY
+          envs: OPENAI_API_KEY,DOCKER_HTTP_PROXY,DOCKER_HTTPS_PROXY
           script: |
             cd ${{ secrets.DEPLOY_PATH || '/app/resume-gpt' }}
             echo "OPENAI_API_KEY=$OPENAI_API_KEY" > .env
 
-            # 配置 Docker 代理（如果 Secret 已配置）
-            if [ -n "$DOCKER_PROXY" ]; then
-              sudo mkdir -p /etc/systemd/system/docker.service.d
-              sudo tee /etc/systemd/system/docker.service.d/proxy.conf > /dev/null <<'PROXY'
-            [Service]
-            Environment="HTTP_PROXY=$DOCKER_PROXY" "HTTPS_PROXY=$DOCKER_PROXY" "NO_PROXY=localhost,127.0.0.1"
-            PROXY
-              # 替换占位符为实际代理地址
-              sudo sed -i "s|\$DOCKER_PROXY|$DOCKER_PROXY|g" /etc/systemd/system/docker.service.d/proxy.conf
-              sudo systemctl daemon-reload
-              sudo systemctl restart docker
+            if [ -n "$DOCKER_HTTPS_PROXY" ] || [ -n "$DOCKER_HTTP_PROXY" ]; then
+              HTTPS_PROXY="$DOCKER_HTTPS_PROXY" HTTP_PROXY="$DOCKER_HTTP_PROXY" docker compose pull
+            else
+              docker compose pull
             fi
-
-            docker compose pull
             docker compose up -d --remove-orphans
             docker image prune -f
-
-            # 清理代理配置，恢复 Docker 原始状态
-            if [ -n "$DOCKER_PROXY" ]; then
-              sudo rm -f /etc/systemd/system/docker.service.d/proxy.conf
-              sudo systemctl daemon-reload
-              sudo systemctl restart docker
-            fi
