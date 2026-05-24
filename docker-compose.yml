@@ -1,5 +1,6 @@
 services:
   app:
+    image: ghcr.io/axelwt/resume-gpt:latest
     build: .
     ports:
       - "8000:8000"
