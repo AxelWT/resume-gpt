@@ -6,7 +6,8 @@ on:
   workflow_dispatch:
 
 env:
-  REGISTRY: ghcr.io
+  REGISTRY: crpi-fmn9v2rn38d84ou1.cn-shanghai.personal.cr.aliyuncs.com
+  IMAGE_NAME: axelwt/resume-gpt
 
 jobs:
   build-and-push:
@@ -14,21 +15,16 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: read
-      packages: write
 
     steps:
       - uses: actions/checkout@v4.2.2
 
-      - name: Generate image metadata
-        id: meta
-        run: echo "image=${GITHUB_REPOSITORY@L}" >> "$GITHUB_OUTPUT"
-
-      - name: Log in to GitHub Container Registry
+      - name: Log in to Alibaba Cloud ACR
         uses: docker/login-action@v3.4.0
         with:
           registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v6.18.0
@@ -36,22 +32,8 @@ jobs:
           context: .
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ steps.meta.outputs.image }}:latest
-            ${{ env.REGISTRY }}/${{ steps.meta.outputs.image }}:${{ github.sha }}
-
-      - name: Keep only latest 3 image versions
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          PACKAGE_NAME=$(echo "${GITHUB_REPOSITORY@L}" | cut -d'/' -f2)
-          # 获取所有版本，按创建时间排序，排除 latest 标签，只保留最新 3 个
-          VERSIONS=$(gh api -H "Accept: application/vnd.github+json" \
-            "/user/packages/container/$PACKAGE_NAME/versions?per_page=100" \
-            --jq '[.[] | select(.metadata.container.tags | index("latest") | not)] | sort_by(.created_at) | reverse | .[3:] | .[].id')
-          for id in $VERSIONS; do
-            echo "Deleting old image version: $id"
-            gh api --method DELETE "/user/packages/container/$PACKAGE_NAME/versions/$id" || true
-          done
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
 
   deploy:
     needs: build-and-push
@@ -78,16 +60,21 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           DOCKER_HTTP_PROXY: ${{ secrets.DOCKER_HTTP_PROXY }}
           DOCKER_HTTPS_PROXY: ${{ secrets.DOCKER_HTTPS_PROXY }}
+          ACR_REGISTRY: ${{ env.REGISTRY }}
+          ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
+          ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           port: ${{ secrets.DEPLOY_PORT || '22' }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           command_timeout: 60m
-          envs: OPENAI_API_KEY,DOCKER_HTTP_PROXY,DOCKER_HTTPS_PROXY
+          envs: OPENAI_API_KEY,DOCKER_HTTP_PROXY,DOCKER_HTTPS_PROXY,ACR_REGISTRY,ACR_USERNAME,ACR_PASSWORD
           script: |
             cd ${{ secrets.DEPLOY_PATH || '/app/resume-gpt' }}
             echo "OPENAI_API_KEY=$OPENAI_API_KEY" > .env
+
+            echo "$ACR_PASSWORD" | docker login --username "$ACR_USERNAME" --password-stdin "$ACR_REGISTRY"
 
             if [ -n "$DOCKER_HTTPS_PROXY" ] || [ -n "$DOCKER_HTTP_PROXY" ]; then
               HTTPS_PROXY="$DOCKER_HTTPS_PROXY" HTTP_PROXY="$DOCKER_HTTP_PROXY" docker compose pull

@@ -1,6 +1,6 @@
 services:
   app:
-    image: ghcr.io/axelwt/resume-gpt:latest
+    image: crpi-fmn9v2rn38d84ou1.cn-shanghai.personal.cr.aliyuncs.com/axelwt/resume-gpt:latest
     build: .
     ports:
       - "8000:8000"
