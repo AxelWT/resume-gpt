@@ -66,8 +66,8 @@
   }
   .sidebar h3 .count { color: #999; font-weight: 400; font-size: 12px; }
   .sidebar-item {
-    padding: 8px 12px;
-    margin-bottom: 6px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
     background: #fff;
     border: 1px solid #eee;
     border-radius: 6px;
@@ -76,19 +76,41 @@
     transition: all .15s;
   }
   .sidebar-item:hover { border-color: #42b883; color: #42b883; }
-  .sidebar-item .title { font-weight: 500; }
-  .sidebar-item .preview { font-size: 12px; color: #999; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .sidebar-item .full-content { display: none; margin-top: 8px; font-size: 13px; color: #213547; line-height: 1.6; white-space: pre-wrap; }
-  .sidebar-item.active .full-content { display: block; }
-  .sidebar-item.active { border-color: #42b883; background: #f0faf5; }
-  .source-link {
-    display: inline-block;
+  .sidebar-item .title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+  }
+  .sidebar-item .title-row .name { font-weight: 500; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sidebar-item .title-row .link {
     font-size: 11px;
     color: #42b883;
     text-decoration: none;
-    margin-top: 3px;
+    white-space: nowrap;
+    flex-shrink: 0;
   }
-  .source-link:hover { text-decoration: underline; }
+  .sidebar-item .title-row .link:hover { text-decoration: underline; }
+  .sidebar-item .tag-list { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+  .sidebar-item .tag-list .tag {
+    background: #f0faf5;
+    color: #42b883;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+  }
+  .sidebar-item .full-content {
+    display: none;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #f0f0f0;
+    font-size: 13px;
+    color: #213547;
+    line-height: 1.7;
+    white-space: pre-wrap;
+  }
+  .sidebar-item.active .full-content { display: block; }
+  .sidebar-item.active { border-color: #42b883; background: #f0faf5; }
 
   /* Form */
   .form-group { margin-bottom: 16px; }
@@ -410,7 +432,7 @@
 <div class="app-header">
   <span class="logo">resumeGPT</span>
   <span class="sep">|</span>
-  <span class="subtitle">面试辅助分析工具</span>
+  <span class="subtitle">简历分析工具</span>
 </div>
 
 <div class="app-body">
@@ -806,9 +828,11 @@ function renderSidebar(experiences) {
 
   list.innerHTML = experiences.map((exp, i) =>
     `<div class="sidebar-item" onclick="toggleExp(this)">
-      <div class="title">${escapeHtml(exp.title || '面经 ' + (i+1))}</div>
-      ${exp.tags && exp.tags.length ? `<div style="font-size:11px;color:#999;margin-top:2px;">${exp.tags.join(' · ')}</div>` : ''}
-      ${exp.url ? `<a class="source-link" href="${escapeHtml(exp.url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">查看原文</a>` : ''}
+      <div class="title-row">
+        <span class="name">${escapeHtml(exp.title || '面经 ' + (i+1))}</span>
+        ${exp.url ? `<a class="link" href="${escapeHtml(exp.url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">查看原文 →</a>` : ''}
+      </div>
+      ${exp.tags && exp.tags.length ? `<div class="tag-list">${exp.tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
       <div class="full-content">${escapeHtml(exp.content || '暂无内容')}</div>
     </div>`
   ).join('');
