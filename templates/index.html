@@ -8,14 +8,14 @@
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Microsoft YaHei", sans-serif;
-    background: #f0f2f5;
-    color: #333;
+    background: #f6f8fa;
+    color: #213547;
     height: 100vh;
     overflow: hidden;
   }
   .app-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: #fff;
+    background: #fff;
+    color: #213547;
     padding: 16px 24px;
     font-size: 20px;
     font-weight: 600;
@@ -23,15 +23,15 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    border-bottom: 1px solid #e2e8f0;
   }
-  .app-header span { opacity: 0.85; font-size: 14px; font-weight: 400; margin-left: auto; }
+  .app-header span { opacity: 0.6; font-size: 14px; font-weight: 400; margin-left: auto; }
   .app-body { display: flex; height: calc(100vh - 56px); }
   .left-panel {
     width: 380px;
     min-width: 380px;
     background: #fff;
-    border-right: 1px solid #e8e8e8;
+    border-right: 1px solid #e2e8f0;
     overflow-y: auto;
     padding: 20px;
   }
@@ -49,7 +49,7 @@
   .sidebar {
     height: 280px;
     min-height: 200px;
-    border-top: 1px solid #e8e8e8;
+    border-top: 1px solid #e2e8f0;
     background: #fafafa;
     overflow-y: auto;
     padding: 16px 24px;
@@ -73,12 +73,12 @@
     font-size: 13px;
     transition: all .15s;
   }
-  .sidebar-item:hover { border-color: #667eea; color: #667eea; }
+  .sidebar-item:hover { border-color: #42b883; color: #42b883; }
   .sidebar-item .title { font-weight: 500; }
   .sidebar-item .preview { font-size: 12px; color: #999; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .sidebar-item .full-content { display: none; margin-top: 8px; font-size: 13px; color: #333; line-height: 1.6; white-space: pre-wrap; }
+  .sidebar-item .full-content { display: none; margin-top: 8px; font-size: 13px; color: #213547; line-height: 1.6; white-space: pre-wrap; }
   .sidebar-item.active .full-content { display: block; }
-  .sidebar-item.active { border-color: #667eea; background: #f8f9ff; }
+  .sidebar-item.active { border-color: #42b883; background: #f0faf5; }
 
   /* Form */
   .form-group { margin-bottom: 16px; }
@@ -86,13 +86,13 @@
   .form-group input, .form-group textarea {
     width: 100%;
     padding: 8px 12px;
-    border: 1px solid #d9d9d9;
+    border: 1px solid #e2e8f0;
     border-radius: 6px;
     font-size: 13px;
     transition: border .2s;
     outline: none;
   }
-  .form-group input:focus, .form-group textarea:focus { border-color: #667eea; box-shadow: 0 0 0 2px rgba(102,126,234,0.15); }
+  .form-group input:focus, .form-group textarea:focus { border-color: #42b883; box-shadow: 0 0 0 2px rgba(66,184,131,0.15); }
   .form-group textarea { resize: vertical; min-height: 60px; font-family: inherit; }
 
   .section-title {
@@ -116,12 +116,12 @@
     border-radius: 6px;
     transition: background .15s;
   }
-  .checkbox-group label:hover { background: #f5f5ff; }
-  .checkbox-group input[type="checkbox"] { width: 16px; height: 16px; accent-color: #667eea; }
+  .checkbox-group label:hover { background: #f0faf5; }
+  .checkbox-group input[type="checkbox"] { width: 16px; height: 16px; accent-color: #42b883; }
 
   .advanced-toggle {
     font-size: 12px;
-    color: #667eea;
+    color: #42b883;
     cursor: pointer;
     user-select: none;
     margin-top: 4px;
@@ -144,19 +144,19 @@
     cursor: pointer;
     transition: all .2s;
   }
-  .btn-primary { background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; }
-  .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(102,126,234,0.4); }
+  .btn-primary { background: #42b883; color: #fff; }
+  .btn-primary:hover { background: #3c8772; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(66,184,131,0.4); }
   .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
   .btn-secondary {
     background: #f5f5f5;
     color: #666;
-    border: 1px solid #d9d9d9;
+    border: 1px solid #e2e8f0;
     padding: 6px 12px;
     width: auto;
     font-size: 12px;
     border-radius: 6px;
   }
-  .btn-secondary:hover { border-color: #667eea; color: #667eea; }
+  .btn-secondary:hover { border-color: #42b883; color: #42b883; }
   .btn-test { margin-top: 8px; }
 
   /* Report */
@@ -179,8 +179,8 @@
     display: inline-block;
     width: 40px;
     height: 40px;
-    border: 3px solid #e8e8e8;
-    border-top-color: #667eea;
+    border: 3px solid #e2e8f0;
+    border-top-color: #42b883;
     border-radius: 50%;
     animation: spin .8s linear infinite;
     margin-bottom: 16px;
@@ -191,14 +191,14 @@
     width: 300px;
     max-width: 80%;
     height: 6px;
-    background: #e8e8e8;
+    background: #e2e8f0;
     border-radius: 3px;
     margin: 16px auto 0;
     overflow: hidden;
   }
   .report-loading .progress-fill {
     height: 100%;
-    background: linear-gradient(90deg, #667eea, #764ba2);
+    background: linear-gradient(90deg, #42b883, #3c8772);
     border-radius: 3px;
     transition: width .5s ease;
   }
@@ -214,23 +214,23 @@
   /* Module card */
   .module-card {
     background: #fff;
-    border: 1px solid #e8e8e8;
+    border: 1px solid #e2e8f0;
     border-radius: 10px;
     padding: 20px;
     margin-bottom: 20px;
   }
   .module-card h2 {
     font-size: 17px;
-    color: #333;
+    color: #213547;
     margin-bottom: 16px;
     padding-bottom: 10px;
-    border-bottom: 2px solid #667eea;
+    border-bottom: 2px solid #42b883;
     display: inline-block;
   }
   .module-card .subtitle { font-size: 13px; color: #999; margin-bottom: 12px; }
   .module-card .score {
     display: inline-block;
-    background: linear-gradient(135deg, #667eea, #764ba2);
+    background: linear-gradient(135deg, #42b883, #3c8772);
     color: #fff;
     padding: 4px 12px;
     border-radius: 20px;
@@ -243,9 +243,9 @@
   .module-card .key-points li {
     padding: 10px 14px;
     margin-bottom: 8px;
-    background: #f8f9ff;
+    background: #f0faf5;
     border-radius: 8px;
-    border-left: 3px solid #667eea;
+    border-left: 3px solid #42b883;
   }
   .module-card .key-points .name { font-weight: 600; font-size: 14px; }
   .module-card .key-points .freq { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 10px; margin-left: 6px; }
@@ -257,9 +257,9 @@
   .module-card .question-item {
     padding: 12px 14px;
     margin-bottom: 10px;
-    background: #f8f9ff;
+    background: #f0faf5;
     border-radius: 8px;
-    border-left: 3px solid #764ba2;
+    border-left: 3px solid #3c8772;
   }
   .module-card .question-item .q { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
   .module-card .question-item .meta { font-size: 12px; color: #999; margin-bottom: 4px; }
@@ -281,8 +281,8 @@
 
   .module-card .tag-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
   .module-card .tag-list .tag {
-    background: #f0f5ff;
-    color: #667eea;
+    background: #f0faf5;
+    color: #42b883;
     padding: 3px 10px;
     border-radius: 12px;
     font-size: 12px;
@@ -306,7 +306,7 @@
   .toast.show { opacity: 1; transform: translateX(0); }
   .toast.error { background: #e74c3c; }
   .toast.success { background: #52c41a; }
-  .toast.info { background: #667eea; }
+  .toast.info { background: #42b883; }
 
   /* Scrollbar */
   ::-webkit-scrollbar { width: 6px; }
@@ -315,7 +315,7 @@
   ::-webkit-scrollbar-thumb:hover { background: #bbb; }
 
   @media (max-width: 768px) {
-    .left-panel { width: 100%; min-width: unset; border-right: none; border-bottom: 1px solid #e8e8e8; }
+    .left-panel { width: 100%; min-width: unset; border-right: none; border-bottom: 1px solid #e2e8f0; }
     .app-body { flex-direction: column; }
     .sidebar { height: auto; max-height: 200px; }
   }
@@ -326,7 +326,7 @@
 <div class="toast" id="toast"></div>
 
 <div class="app-header">
-  🧠 resume-gpt
+  resume-gpt
   <span>面试辅助分析工具</span>
 </div>
 
@@ -374,7 +374,7 @@
     </div>
 
     <div style="margin-top: 20px;">
-      <button class="btn btn-primary" id="startBtn" onclick="startAnalysis()">🚀 开始分析</button>
+      <button class="btn btn-primary" id="startBtn" onclick="startAnalysis()">开始分析</button>
     </div>
   </div>
 
@@ -512,7 +512,7 @@ async function startAnalysis() {
   } catch (e) {
     showToast('❌ ' + e.message, 'error');
     document.getElementById('startBtn').disabled = false;
-    document.getElementById('startBtn').textContent = '🚀 开始分析';
+    document.getElementById('startBtn').textContent = '开始分析';
   }
 }
 
@@ -532,7 +532,7 @@ async function pollStatus() {
       if (data.status === 'completed') {
         polling = false;
         document.getElementById('startBtn').disabled = false;
-        document.getElementById('startBtn').textContent = '🚀 开始分析';
+        document.getElementById('startBtn').textContent = '开始分析';
         if (data.result) {
           if (data.result.error) {
             showReportError(data.result.error);
@@ -546,14 +546,14 @@ async function pollStatus() {
       if (data.status === 'failed') {
         polling = false;
         document.getElementById('startBtn').disabled = false;
-        document.getElementById('startBtn').textContent = '🚀 开始分析';
+        document.getElementById('startBtn').textContent = '开始分析';
         showReportError(data.error || '分析过程出错');
         return;
       }
     } catch (e) {
       polling = false;
       document.getElementById('startBtn').disabled = false;
-      document.getElementById('startBtn').textContent = '🚀 开始分析';
+      document.getElementById('startBtn').textContent = '开始分析';
       showReportError('连接失败: ' + e.message);
       return;
     }
@@ -625,7 +625,7 @@ function renderMockInterview(data) {
         ${q.suggested_answer ? `<div class="ans"><strong>回答思路：</strong>${escapeHtml(q.suggested_answer)}</div>` : ''}
       </div>`
     ).join('');
-    return `<h3 style="font-size:15px;margin:12px 0 8px;color:#764ba2;">${escapeHtml(c.type)}</h3>${qs}`;
+    return `<h3 style="font-size:15px;margin:12px 0 8px;color:#3c8772;">${escapeHtml(c.type)}</h3>${qs}`;
   }).join('');
   return `<div class="module-card">
     <h2>模拟面试题目预测</h2>
