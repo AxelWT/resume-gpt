@@ -16,16 +16,18 @@
   .app-header {
     background: #fff;
     color: #213547;
-    padding: 16px 24px;
+    padding: 14px 24px;
     font-size: 20px;
-    font-weight: 600;
-    letter-spacing: 1px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
     display: flex;
-    align-items: center;
-    gap: 10px;
+    align-items: baseline;
+    gap: 12px;
     border-bottom: 1px solid #e2e8f0;
   }
-  .app-header span { opacity: 0.6; font-size: 14px; font-weight: 400; margin-left: auto; }
+  .app-header .logo { color: #42b883; }
+  .app-header .sep { color: #d9d9d9; font-weight: 300; }
+  .app-header .subtitle { font-size: 13px; font-weight: 400; color: #888; }
   .app-body { display: flex; height: calc(100vh - 56px); }
   .left-panel {
     width: 380px;
@@ -120,7 +122,7 @@
   .checkbox-group input[type="checkbox"] { width: 16px; height: 16px; accent-color: #42b883; }
 
   .advanced-toggle {
-    font-size: 12px;
+    font-size: 15px;
     color: #42b883;
     cursor: pointer;
     user-select: none;
@@ -128,6 +130,46 @@
   }
   .advanced-toggle:hover { text-decoration: underline; }
   .advanced-options { display: none; margin-top: 8px; }
+
+  .resume-tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 8px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .resume-tab {
+    flex: 1;
+    text-align: center;
+    padding: 6px 0;
+    font-size: 12px;
+    color: #666;
+    cursor: pointer;
+    background: #fafafa;
+    transition: all .15s;
+    user-select: none;
+  }
+  .resume-tab:hover { color: #42b883; }
+  .resume-tab.active { background: #42b883; color: #fff; }
+  #resumeFileWrap input[type="file"] {
+    font-size: 12px;
+    color: #666;
+  }
+  #resumeTextWrap textarea {
+    width: 100%;
+    height: 80px;
+    padding: 8px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 13px;
+    resize: vertical;
+    outline: none;
+    font-family: inherit;
+    line-height: 1.5;
+  }
+  #resumeTextWrap textarea:focus { border-color: #42b883; box-shadow: 0 0 0 2px rgba(66,184,131,0.15); }
+  .char-count { text-align: right; font-size: 11px; color: #999; margin-top: 4px; }
   .advanced-options.show { display: block; }
 
   .btn {
@@ -158,6 +200,24 @@
   }
   .btn-secondary:hover { border-color: #42b883; color: #42b883; }
   .btn-test { margin-top: 8px; }
+  select {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 14px;
+    color: #333;
+    background: #fff;
+    box-sizing: border-box;
+    outline: none;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23999' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+  }
+  select:focus { border-color: #42b883; }
 
   /* Report */
   .report-empty {
@@ -188,19 +248,33 @@
   @keyframes spin { to { transform: rotate(360deg); } }
   .report-loading .msg { color: #666; font-size: 14px; }
   .report-loading .progress-bar {
-    width: 300px;
+    width: 320px;
     max-width: 80%;
-    height: 6px;
+    height: 8px;
     background: #e2e8f0;
-    border-radius: 3px;
+    border-radius: 4px;
     margin: 16px auto 0;
     overflow: hidden;
+    position: relative;
   }
   .report-loading .progress-fill {
     height: 100%;
     background: linear-gradient(90deg, #42b883, #3c8772);
-    border-radius: 3px;
+    border-radius: 4px;
     transition: width .5s ease;
+  }
+  .report-loading .progress-fill.active::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    animation: shimmer 1.5s infinite;
+  }
+  @keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+  .report-loading .progress-text {
+    font-size: 12px;
+    color: #999;
+    margin-top: 8px;
   }
 
   .report-error {
@@ -326,14 +400,24 @@
 <div class="toast" id="toast"></div>
 
 <div class="app-header">
-  resume-gpt
-  <span>面试辅助分析工具</span>
+  <span class="logo">resume-gpt</span>
+  <span class="sep">|</span>
+  <span class="subtitle">面试辅助分析工具</span>
 </div>
 
 <div class="app-body">
   <!-- Left Panel -->
   <div class="left-panel">
-    <div class="section-title">🔌 模型配置</div>
+    <div class="section-title">☁️ 模型配置</div>
+    <div class="form-group">
+      <label>模型供应商</label>
+      <select id="provider" onchange="switchProvider()">
+        <option value="glm">GLM (智谱)</option>
+        <option value="deepseek">DeepSeek</option>
+        <option value="qwen">Qwen (通义千问)</option>
+        <option value="custom">自定义</option>
+      </select>
+    </div>
     <div class="form-group">
       <label>API 地址 (base_url)</label>
       <input type="text" id="baseUrl" placeholder="https://open.bigmodel.cn/api/paas/v4" value="https://open.bigmodel.cn/api/paas/v4">
@@ -354,8 +438,18 @@
       <input type="text" id="query" placeholder="例: 字节跳动 后端开发">
     </div>
     <div class="form-group">
-      <label>上传简历 (PDF)</label>
-      <input type="file" id="resumeFile" accept=".pdf">
+      <label>简历内容</label>
+      <div class="resume-tabs">
+        <span class="resume-tab active" onclick="switchResumeTab('file')">上传 PDF</span>
+        <span class="resume-tab" onclick="switchResumeTab('text')">粘贴文字</span>
+      </div>
+      <div id="resumeFileWrap">
+        <input type="file" id="resumeFile" accept=".pdf">
+      </div>
+      <div id="resumeTextWrap" style="display:none">
+        <textarea id="resumeTextInput" placeholder="粘贴简历内容..." maxlength="3000" oninput="updateCharCount()"></textarea>
+        <div class="char-count"><span id="charCount">0</span>/3000</div>
+      </div>
     </div>
 
     <div class="section-title">📋 分析模块</div>
@@ -397,6 +491,36 @@
 let taskId = null;
 let polling = false;
 let resumeText = '';
+
+const PROVIDERS = {
+  glm:      { base_url: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-4-flash' },
+  deepseek: { base_url: 'https://api.deepseek.com',             model: 'deepseek-chat' },
+  qwen:     { base_url: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-plus' },
+  custom:   { base_url: '', model: '' },
+};
+
+function switchProvider() {
+  const p = PROVIDERS[document.getElementById('provider').value];
+  document.getElementById('baseUrl').value = p.base_url;
+  document.getElementById('modelName').value = p.model;
+}
+
+let resumeInputMode = 'file';
+
+function switchResumeTab(mode) {
+  resumeInputMode = mode;
+  document.querySelectorAll('.resume-tab').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('resumeFileWrap').style.display = mode === 'file' ? '' : 'none';
+  document.getElementById('resumeTextWrap').style.display = mode === 'text' ? '' : 'none';
+}
+
+function updateCharCount() {
+  const len = document.getElementById('resumeTextInput').value.length;
+  const el = document.getElementById('charCount');
+  el.textContent = len;
+  el.style.color = len >= 2800 ? '#e74c3c' : '';
+}
 
 function showToast(msg, type = 'info') {
   const t = document.getElementById('toast');
@@ -457,25 +581,29 @@ async function startAnalysis() {
     return;
   }
 
-  // Upload resume if selected
-  const fileInput = document.getElementById('resumeFile');
+  // Get resume content
   resumeText = '';
-  if (fileInput.files.length > 0) {
-    try {
-      const formData = new FormData();
-      formData.append('file', fileInput.files[0]);
-      const uploadResp = await fetch('/api/upload-resume', { method: 'POST', body: formData });
-      if (!uploadResp.ok) {
-        const err = await uploadResp.json();
-        showToast('简历上传失败: ' + err.detail, 'error');
+  if (resumeInputMode === 'text') {
+    resumeText = document.getElementById('resumeTextInput').value.trim();
+  } else {
+    const fileInput = document.getElementById('resumeFile');
+    if (fileInput.files.length > 0) {
+      try {
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+        const uploadResp = await fetch('/api/upload-resume', { method: 'POST', body: formData });
+        if (!uploadResp.ok) {
+          const err = await uploadResp.json();
+          showToast('简历上传失败: ' + err.detail, 'error');
+          return;
+        }
+        const uploadData = await uploadResp.json();
+        resumeText = uploadData.text;
+        showToast('✅ 简历解析成功 (' + resumeText.length + ' 字符)', 'success');
+      } catch (e) {
+        showToast('简历上传失败: ' + e.message, 'error');
         return;
       }
-      const uploadData = await uploadResp.json();
-      resumeText = uploadData.text;
-      showToast('✅ 简历解析成功 (' + resumeText.length + ' 字符)', 'success');
-    } catch (e) {
-      showToast('简历上传失败: ' + e.message, 'error');
-      return;
     }
   }
 
@@ -563,14 +691,17 @@ async function pollStatus() {
 
 function showReportLoading() {
   const area = document.getElementById('reportArea');
-  area.innerHTML = '<div class="report-loading"><div class="spinner"></div><div class="msg" id="progressMsg">正在准备分析...</div><div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div></div>';
+  area.innerHTML = '<div class="report-loading"><div class="spinner"></div><div class="msg" id="progressMsg">正在分析中...</div><div class="progress-bar"><div class="progress-fill active" id="progressFill" style="width:0%"></div></div><div class="progress-text" id="progressText">0%</div></div>';
 }
 
 function updateProgress(pct, msg) {
   const fill = document.getElementById('progressFill');
   const msgEl = document.getElementById('progressMsg');
-  if (fill) fill.style.width = Math.min(pct, 100) + '%';
+  const textEl = document.getElementById('progressText');
+  const clamped = Math.min(pct, 100);
+  if (fill) fill.style.width = clamped + '%';
   if (msgEl && msg) msgEl.textContent = msg;
+  if (textEl) textEl.textContent = clamped + '%';
 }
 
 function showReportError(msg) {
