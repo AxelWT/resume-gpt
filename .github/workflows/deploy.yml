@@ -38,6 +38,20 @@ jobs:
             ${{ env.REGISTRY }}/${{ steps.meta.outputs.image }}:latest
             ${{ env.REGISTRY }}/${{ steps.meta.outputs.image }}:${{ github.sha }}
 
+      - name: Keep only latest 3 image versions
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PACKAGE_NAME=$(echo "${GITHUB_REPOSITORY@L}" | cut -d'/' -f2)
+          # 获取所有版本，按创建时间排序，排除 latest 标签，只保留最新 3 个
+          VERSIONS=$(gh api -H "Accept: application/vnd.github+json" \
+            "/user/packages/container/$PACKAGE_NAME/versions?per_page=100" \
+            --jq '[.[] | select(.metadata.container.tags | index("latest") | not)] | sort_by(.created_at) | reverse | .[3:] | .[].id')
+          for id in $VERSIONS; do
+            echo "Deleting old image version: $id"
+            gh api --method DELETE "/user/packages/container/$PACKAGE_NAME/versions/$id" || true
+          done
+
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
