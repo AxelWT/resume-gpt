@@ -142,7 +142,7 @@
   html:not(.dark) .theme-toggle .icon-sun { display: none; }
   html.dark .theme-toggle .icon-moon { display: none; }
   html.dark .theme-toggle .icon-sun { display: block; }
-  .app-body { display: flex; height: calc(100vh - 56px); }
+  .app-body { display: flex; height: calc(100vh - 56px - 66px); }
   .left-panel {
     width: 380px;
     min-width: 380px;
@@ -700,6 +700,30 @@
   ::-webkit-scrollbar-thumb { background: var(--c-scrollbar); border-radius: 3px; }
   ::-webkit-scrollbar-thumb:hover { background: var(--c-scrollbar-h); }
 
+  .app-footer {
+    background: var(--c-bg-solid);
+    border-top: 1px solid var(--c-border);
+    padding: 24px 24px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--c-text-4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .app-footer a {
+    color: var(--c-accent);
+    text-decoration: none;
+  }
+  .app-footer a:hover {
+    text-decoration: underline;
+  }
+  .app-footer .dot {
+    color: var(--c-text-5);
+  }
+
   @media (max-width: 768px) {
     .left-panel { width: 100%; min-width: unset; border-right: none; border-bottom: 1px solid var(--c-border); }
     .app-body { flex-direction: column; }
@@ -844,6 +868,12 @@
     </div>
   </div>
 </div>
+
+<footer class="app-footer">
+  <span>© 2026 resume-gpt</span>
+  <span class="dot">·</span>
+  <a href="mailto:axelwt@163.com">axelwt@163.com</a>
+</footer>
 
 <script>
 let taskId = null;
