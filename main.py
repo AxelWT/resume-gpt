@@ -6,10 +6,11 @@ Resume-GPT 主应用入口
 """
 
 import asyncio
+import base64
 import uuid
 from pathlib import Path
 
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -59,16 +60,19 @@ class TestConfigRequest(BaseModel):
 class AnalyzeRequest(BaseModel):
     """启动分析任务的请求体"""
 
-    base_url: str  # AI API 基础地址
-    api_key: str  # API 密钥
-    model_name: str  # 模型名称
-    query: str  # 搜索关键词，用于搜索相关面经
-    modules: list[
-        str
-    ]  # 要执行的分析模块列表，可选值: summary, mock_interview, resume_tips
-    sources: list[str] = ["nowcoder"]  # 面经来源列表，默认牛客网
-    max_count: int = 10  # 每个来源最多爬取多少条面经，默认 10 条
-    resume_text: str = ""  # 用户上传的简历文本（可选），用于结合简历做个性化分析
+    base_url: str
+    api_key: str
+    model_name: str
+    query: str
+    modules: list[str]
+    sources: list[str] = ["nowcoder"]
+    max_count: int = 10
+    resume_text: str = ""
+
+
+class UploadResumeRequest(BaseModel):
+    filename: str
+    file_base64: str
 
 
 # ==================== API 路由 ====================
@@ -226,17 +230,18 @@ async def run_analysis(task_id: str, req: AnalyzeRequest):
         task["error"] = str(e)
 
 
+MAX_FILE_SIZE = 5 * 1024 * 1024
+
+
 @app.post("/api/upload-resume")
-async def upload_resume(file: UploadFile = File(...)):
-    """
-    上传 PDF 简历文件，提取其中的文本内容。
-    返回纯文本供后续分析模块使用。
-    """
-    if not file.filename or not file.filename.lower().endswith(".pdf"):
+async def upload_resume(req: UploadResumeRequest):
+    if not req.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="请上传 PDF 文件")
 
-    # 读取文件二进制内容，在内存中解析 PDF 提取文本
-    content = await file.read()
+    content = base64.b64decode(req.file_base64)
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(status_code=400, detail="文件大小不能超过 5MB")
+
     text = parse_resume(content)
     if not text.strip():
         raise HTTPException(

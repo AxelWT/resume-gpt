@@ -1075,9 +1075,18 @@ async function startAnalysis() {
     const fileInput = document.getElementById('resumeFile');
     if (fileInput.files.length > 0) {
       try {
-        const formData = new FormData();
-        formData.append('file', fileInput.files[0]);
-        const uploadResp = await fetch('/api/upload-resume', { method: 'POST', body: formData });
+        const file = fileInput.files[0];
+        const fileData = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result.split(',')[1]);
+          reader.onerror = () => reject(new Error('文件读取失败'));
+          reader.readAsDataURL(file);
+        });
+        const uploadResp = await fetch('/api/upload-resume', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filename: file.name, file_base64: fileData })
+        });
         if (!uploadResp.ok) {
           const err = await uploadResp.json();
           showToast('简历上传失败: ' + err.detail, 'error');
