@@ -81,6 +81,14 @@
   .sidebar-item .full-content { display: none; margin-top: 8px; font-size: 13px; color: #213547; line-height: 1.6; white-space: pre-wrap; }
   .sidebar-item.active .full-content { display: block; }
   .sidebar-item.active { border-color: #42b883; background: #f0faf5; }
+  .source-link {
+    display: inline-block;
+    font-size: 11px;
+    color: #42b883;
+    text-decoration: none;
+    margin-top: 3px;
+  }
+  .source-link:hover { text-decoration: underline; }
 
   /* Form */
   .form-group { margin-bottom: 16px; }
@@ -400,7 +408,7 @@
 <div class="toast" id="toast"></div>
 
 <div class="app-header">
-  <span class="logo">resume-gpt</span>
+  <span class="logo">resumeGPT</span>
   <span class="sep">|</span>
   <span class="subtitle">面试辅助分析工具</span>
 </div>
@@ -800,6 +808,7 @@ function renderSidebar(experiences) {
     `<div class="sidebar-item" onclick="toggleExp(this)">
       <div class="title">${escapeHtml(exp.title || '面经 ' + (i+1))}</div>
       ${exp.tags && exp.tags.length ? `<div style="font-size:11px;color:#999;margin-top:2px;">${exp.tags.join(' · ')}</div>` : ''}
+      ${exp.url ? `<a class="source-link" href="${escapeHtml(exp.url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">查看原文</a>` : ''}
       <div class="full-content">${escapeHtml(exp.content || '暂无内容')}</div>
     </div>`
   ).join('');
