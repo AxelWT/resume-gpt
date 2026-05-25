@@ -134,8 +134,54 @@
     margin: 20px 0 12px;
     padding-bottom: 8px;
     border-bottom: 1px solid #f0f0f0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
   }
   .section-title:first-of-type { margin-top: 0; }
+  .help-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    user-select: none;
+    transition: all .2s;
+    position: relative;
+    vertical-align: middle;
+  }
+  .help-icon svg { width: 16px; height: 16px; }
+  .help-icon svg circle, .help-icon svg path { transition: stroke .2s, fill .2s; }
+  .help-icon:hover svg circle { stroke: #42b883; }
+  .help-icon:hover svg path { stroke: #42b883; }
+  .help-icon:hover svg .dot { fill: #42b883; }
+  .help-popover {
+    display: none;
+    position: absolute;
+    top: 24px;
+    left: 0;
+    z-index: 200;
+    width: 280px;
+    padding: 14px 16px;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+    font-size: 13px;
+    font-weight: 400;
+    color: #555;
+    line-height: 1.7;
+  }
+  .help-popover.show { display: block; }
+  .help-popover .popover-title { font-weight: 600; color: #213547; margin-bottom: 8px; font-size: 14px; }
+  .help-popover .popover-step { margin-bottom: 6px; padding-left: 18px; position: relative; }
+  .help-popover .popover-step::before { position: absolute; left: 0; font-weight: 600; color: #42b883; }
+  .help-popover .popover-step:nth-child(2)::before { content: '1.'; }
+  .help-popover .popover-step:nth-child(3)::before { content: '2.'; }
+  .help-popover .popover-step:nth-child(4)::before { content: '3.'; }
+  .help-popover .popover-link { color: #42b883; text-decoration: none; }
+  .help-popover .popover-link:hover { text-decoration: underline; }
 
   .checkbox-group { display: flex; flex-direction: column; gap: 8px; }
   .checkbox-group label {
@@ -201,6 +247,74 @@
   #resumeTextWrap textarea:focus { border-color: #42b883; box-shadow: 0 0 0 2px rgba(66,184,131,0.15); }
   .char-count { text-align: right; font-size: 11px; color: #999; margin-top: 4px; }
   .advanced-options.show { display: block; }
+
+  .source-select {
+    position: relative;
+  }
+  .source-select-trigger {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px;
+    min-height: 36px;
+    padding: 4px 30px 4px 8px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    background: #fff;
+    cursor: pointer;
+    transition: border .2s;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23999' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+  }
+  .source-select-trigger:hover { border-color: #42b883; }
+  .source-select-trigger .placeholder { color: #bbb; font-size: 13px; }
+  .source-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: #f0faf5;
+    color: #42b883;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  .source-tag .remove {
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+    opacity: 0.6;
+  }
+  .source-tag .remove:hover { opacity: 1; }
+  .source-select-dropdown {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    margin-top: 4px;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    max-height: 220px;
+    overflow-y: auto;
+    padding: 6px 0;
+  }
+  .source-select-dropdown.show { display: block; }
+  .source-select-dropdown label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 12px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .source-select-dropdown label:hover { background: #f0faf5; }
+  .source-select-dropdown input[type="checkbox"] { width: 16px; height: 16px; accent-color: #42b883; }
 
   .btn {
     display: inline-flex;
@@ -438,19 +552,26 @@
 <div class="app-body">
   <!-- Left Panel -->
   <div class="left-panel">
-    <div class="section-title">☁️ 模型配置</div>
+    <div class="section-title" style="position:relative;"> 模型配置 <span class="help-icon" onclick="toggleHelpPopover(event)"><svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="8" r="7" stroke="#bbb" stroke-width="1.2" fill="none"/><path d="M6 6a2 2 0 1 1 2.5 1.94c-.28.1-.5.36-.5.66V9.5" stroke="#bbb" stroke-width="1.2" stroke-linecap="round" fill="none"/><circle cx="8" cy="11.8" r="0.6" fill="#bbb" class="dot"/></svg></span>
+      <div class="help-popover" id="helpPopover">
+        <div class="popover-title">如何获取模型配置信息？</div>
+        <div class="popover-step">打开 <a class="popover-link" href="https://chat.deepseek.com" target="_blank">DeepSeek 平台</a>，进入聊天对话界面</div>
+        <div class="popover-step">在聊天框中直接提问，例如：「请告诉我 DeepSeek API 的 base_url、如何获取 API Key，以及可用的模型名称列表」</div>
+        <div class="popover-step">DeepSeek 会告知如何获取 base_url、API Key、model_name，将对应信息填入左侧即可</div>
+      </div>
+    </div>
     <div class="form-group">
       <label>模型供应商</label>
       <select id="provider" onchange="switchProvider()">
-        <option value="glm">GLM (智谱)</option>
         <option value="deepseek">DeepSeek</option>
+        <option value="glm">GLM (智谱)</option>
         <option value="qwen">Qwen (通义千问)</option>
         <option value="custom">自定义</option>
       </select>
     </div>
     <div class="form-group">
       <label>API 地址 (base_url)</label>
-      <input type="text" id="baseUrl" placeholder="https://open.bigmodel.cn/api/paas/v4" value="https://open.bigmodel.cn/api/paas/v4">
+      <input type="text" id="baseUrl" placeholder="https://api.deepseek.com" value="https://api.deepseek.com">
     </div>
     <div class="form-group">
       <label>API Key</label>
@@ -458,11 +579,11 @@
     </div>
     <div class="form-group">
       <label>模型名称</label>
-      <input type="text" id="modelName" placeholder="glm-4.6" value="glm-4.6">
+      <input type="text" id="modelName" placeholder="deepseek-chat" value="deepseek-chat">
     </div>
     <button class="btn btn-secondary btn-test" onclick="testConfig()">测试连接</button>
 
-    <div class="section-title">🔍 搜索配置</div>
+    <div class="section-title">搜索配置</div>
     <div class="form-group">
       <label>公司 + 岗位</label>
       <input type="text" id="query" placeholder="例: 字节跳动 后端开发">
@@ -482,7 +603,7 @@
       </div>
     </div>
 
-    <div class="section-title">📋 分析模块</div>
+    <div class="section-title">分析模块</div>
     <div class="checkbox-group">
       <label><input type="checkbox" value="summary" checked> 面经总结与考点分析</label>
       <label><input type="checkbox" value="mock_interview"> 模拟面试题目预测</label>
@@ -492,7 +613,21 @@
     <div class="advanced-toggle" onclick="toggleAdvanced()">▸ 高级选项</div>
     <div class="advanced-options" id="advancedOptions">
       <div class="form-group">
-        <label>最大抓取面经数量</label>
+        <label>信息来源</label>
+        <div class="source-select" id="sourceSelect">
+          <div class="source-select-trigger" id="sourceTrigger" onclick="toggleSourceDropdown()">
+            <span class="placeholder">加载中...</span>
+          </div>
+          <div class="source-select-dropdown" id="sourceDropdown"></div>
+        </div>
+      </div>
+      <div class="form-group" style="position:relative;">
+        <label>最大抓取面经数量 <span class="help-icon" onclick="toggleMaxCountPopover(event)"><svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="8" r="7" stroke="#bbb" stroke-width="1.2" fill="none"/><path d="M6 6a2 2 0 1 1 2.5 1.94c-.28.1-.5.36-.5.66V9.5" stroke="#bbb" stroke-width="1.2" stroke-linecap="round" fill="none"/><circle cx="8" cy="11.8" r="0.6" fill="#bbb" class="dot"/></svg></span>
+          <div class="help-popover" id="maxCountPopover">
+            <div class="popover-title">抓取数量说明</div>
+            <div style="padding-left:0;">该数量为<strong>每个来源</strong>的最大抓取条数，非总量。例如：选择 5 个来源 × 最大 10 条 = 最多可能抓取 50 条面经。</div>
+          </div>
+        </label>
         <input type="number" id="maxCount" value="10" min="1" max="50">
       </div>
     </div>
@@ -521,6 +656,8 @@
 let taskId = null;
 let polling = false;
 let resumeText = '';
+let allSources = [];
+let selectedSources = ['nowcoder'];
 
 const PROVIDERS = {
   glm:      { base_url: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-4-flash' },
@@ -534,6 +671,83 @@ function switchProvider() {
   document.getElementById('baseUrl').value = p.base_url;
   document.getElementById('modelName').value = p.model;
 }
+
+async function loadSources() {
+  try {
+    const resp = await fetch('/api/sources');
+    if (!resp.ok) return;
+    allSources = await resp.json();
+    renderSourceDropdown();
+    renderSourceTrigger();
+  } catch (e) {}
+}
+
+function renderSourceDropdown() {
+  const dropdown = document.getElementById('sourceDropdown');
+  dropdown.innerHTML = allSources.map(s =>
+    `<label><input type="checkbox" value="${s.key}" ${selectedSources.includes(s.key) ? 'checked' : ''} onchange="onSourceCheck(this)">${s.name}</label>`
+  ).join('');
+}
+
+function renderSourceTrigger() {
+  const trigger = document.getElementById('sourceTrigger');
+  const selected = allSources.filter(s => selectedSources.includes(s.key));
+  if (selected.length === 0) {
+    trigger.innerHTML = '<span class="placeholder">请选择信息来源</span>';
+  } else {
+    trigger.innerHTML = selected.map(s =>
+      `<span class="source-tag">${s.name}<span class="remove" onclick="event.stopPropagation(); removeSource('${s.key}')">×</span></span>`
+    ).join('');
+  }
+}
+
+function toggleSourceDropdown() {
+  const dropdown = document.getElementById('sourceDropdown');
+  dropdown.classList.toggle('show');
+}
+
+function onSourceCheck(el) {
+  const key = el.value;
+  if (el.checked) {
+    if (!selectedSources.includes(key)) selectedSources.push(key);
+  } else {
+    selectedSources = selectedSources.filter(k => k !== key);
+  }
+  renderSourceTrigger();
+}
+
+function removeSource(key) {
+  selectedSources = selectedSources.filter(k => k !== key);
+  renderSourceDropdown();
+  renderSourceTrigger();
+}
+
+document.addEventListener('click', function(e) {
+  const select = document.getElementById('sourceSelect');
+  if (select && !select.contains(e.target)) {
+    document.getElementById('sourceDropdown').classList.remove('show');
+  }
+  const popover = document.getElementById('helpPopover');
+  if (popover && !e.target.classList.contains('help-icon')) {
+    popover.classList.remove('show');
+  }
+  const maxCountPopover = document.getElementById('maxCountPopover');
+  if (maxCountPopover && !e.target.classList.contains('help-icon')) {
+    maxCountPopover.classList.remove('show');
+  }
+});
+
+function toggleHelpPopover(e) {
+  e.stopPropagation();
+  document.getElementById('helpPopover').classList.toggle('show');
+}
+
+function toggleMaxCountPopover(e) {
+  e.stopPropagation();
+  document.getElementById('maxCountPopover').classList.toggle('show');
+}
+
+loadSources();
 
 let resumeInputMode = 'file';
 
@@ -594,6 +808,7 @@ async function startAnalysis() {
   const modelName = document.getElementById('modelName').value.trim();
   const query = document.getElementById('query').value.trim();
   const maxCount = parseInt(document.getElementById('maxCount').value) || 10;
+  const sources = selectedSources.length > 0 ? selectedSources : ['nowcoder'];
 
   if (!baseUrl || !apiKey || !modelName) {
     showToast('请填写完整的模型配置', 'error');
@@ -655,6 +870,7 @@ async function startAnalysis() {
         model_name: modelName,
         query: query,
         modules: modules,
+        sources: sources,
         max_count: maxCount,
         resume_text: resumeText,
       }),

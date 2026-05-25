@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from pydantic import BaseModel
 
-from scraper.nowcoder import NowCrawler
+from scraper.registry import get_crawler, get_sources
 from ai.client import AIClient
 from utils.pdf_parser import parse_resume
 from analyzers.summary import SummaryAnalyzer
@@ -47,25 +47,32 @@ tasks: dict[str, dict] = {}
 
 # ==================== 请求模型定义 ====================
 
+
 class TestConfigRequest(BaseModel):
     """测试 AI 模型配置是否有效的请求体"""
-    base_url: str       # OpenAI 兼容 API 的基础地址，如 https://api.openai.com/v1
-    api_key: str        # API 密钥
-    model_name: str     # 模型名称，如 gpt-4o、deepseek-chat 等
+
+    base_url: str  # OpenAI 兼容 API 的基础地址，如 https://api.openai.com/v1
+    api_key: str  # API 密钥
+    model_name: str  # 模型名称，如 gpt-4o、deepseek-chat 等
 
 
 class AnalyzeRequest(BaseModel):
     """启动分析任务的请求体"""
-    base_url: str               # AI API 基础地址
-    api_key: str                # API 密钥
-    model_name: str             # 模型名称
-    query: str                  # 搜索关键词，用于在牛客网搜索相关面经
-    modules: list[str]          # 要执行的分析模块列表，可选值: summary, mock_interview, resume_tips
-    max_count: int = 10         # 最多爬取多少条面经，默认 10 条
-    resume_text: str = ""       # 用户上传的简历文本（可选），用于结合简历做个性化分析
+
+    base_url: str  # AI API 基础地址
+    api_key: str  # API 密钥
+    model_name: str  # 模型名称
+    query: str  # 搜索关键词，用于搜索相关面经
+    modules: list[
+        str
+    ]  # 要执行的分析模块列表，可选值: summary, mock_interview, resume_tips
+    sources: list[str] = ["nowcoder"]  # 面经来源列表，默认牛客网
+    max_count: int = 10  # 每个来源最多爬取多少条面经，默认 10 条
+    resume_text: str = ""  # 用户上传的简历文本（可选），用于结合简历做个性化分析
 
 
 # ==================== API 路由 ====================
+
 
 @app.post("/api/test-config")
 async def test_config(req: TestConfigRequest):
@@ -79,6 +86,12 @@ async def test_config(req: TestConfigRequest):
         return {"status": "ok", "message": "连接成功"}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/api/sources")
+async def list_sources():
+    """返回所有可用的面经来源列表"""
+    return get_sources()
 
 
 @app.post("/api/analyze")
@@ -107,20 +120,21 @@ async def get_status(task_id: str):
     if not task:
         raise HTTPException(status_code=404, detail="任务不存在")
     return {
-        "status": task["status"],      # pending | running | completed | failed
+        "status": task["status"],  # pending | running | completed | failed
         "progress": task["progress"],  # 0-100 的进度百分比
-        "result": task["result"],      # 分析完成后的结果数据
-        "error": task["error"],        # 失败时的错误信息
+        "result": task["result"],  # 分析完成后的结果数据
+        "error": task["error"],  # 失败时的错误信息
     }
 
 
 # ==================== 核心分析流程 ====================
 
+
 async def run_analysis(task_id: str, req: AnalyzeRequest):
     """
     异步执行完整的分析流程，包括：
     1. 初始化并测试 AI 客户端连接
-    2. 根据关键词爬取牛客网面经
+    2. 根据关键词从多个来源爬取面经
     3. 获取每条面经的详细内容
     4. 按用户选择的分析模块逐个执行 AI 分析
     5. 汇总结果并更新任务状态
@@ -135,72 +149,79 @@ async def run_analysis(task_id: str, req: AnalyzeRequest):
         await ai_client.test()
         task["progress"] = 10
 
-        # Step 2: 爬取牛客网面经列表
-        task["message"] = "正在爬取牛客网面经..."
-        crawler = NowCrawler()
-        experiences = await crawler.search(req.query, req.max_count)
-        task["progress"] = 30
+        # Step 2: 从多个来源爬取面经
+        sources = req.sources or ["nowcoder"]
+        all_experiences = []
+        total_sources = len(sources)
+        # 爬取阶段分配 10% → 50% 的进度
+        progress_per_source = 40 // max(total_sources, 1)
 
-        # 如果没搜到任何面经，直接返回提示
-        if not experiences:
+        for idx, source_key in enumerate(sources):
+            try:
+                crawler = get_crawler(source_key)
+                task["message"] = f"正在从{crawler.name}爬取面经..."
+
+                exps = await crawler.search(req.query, req.max_count)
+                # 标注每条面经的来源
+                for exp in exps:
+                    exp["source"] = crawler.name
+
+                # 逐条获取详情
+                for exp in exps:
+                    try:
+                        detail = await crawler.fetch_content(exp["url"])
+                        exp.update(detail)
+                    except Exception:
+                        exp["content"] = ""
+
+                all_experiences.extend(exps)
+                await crawler.close()
+            except Exception:
+                # 单个来源失败不影响其他来源
+                pass
+
+            task["progress"] = 10 + (idx + 1) * progress_per_source
+
+        if not all_experiences:
             task["status"] = "completed"
             task["progress"] = 100
-            task["result"] = {"error": "未找到相关面经，请尝试其他搜索词"}
+            task["result"] = {"error": "未找到相关面经，请尝试其他搜索词或来源"}
             return
 
-        # Step 3: 逐条获取面经的正文详情和标签
-        task["message"] = f"已找到 {len(experiences)} 条面经，正在获取详情..."
-        for exp in experiences:
-            try:
-                detail = await crawler.fetch_content(exp["url"])
-                exp.update(detail)  # 将 content 和 tags 合并到该条面经中
-            except Exception:
-                # 单条面经获取失败不影响整体流程，置空即可
-                exp["content"] = ""
-        task["progress"] = 50
-
-        # Step 4: 准备简历文本
-        resume_text = req.resume_text
+        task["message"] = f"共获取 {len(all_experiences)} 条面经，正在分析..."
         task["progress"] = 55
 
-        # Step 5: 执行用户选择的分析模块
-        result = {"modules": {}, "experiences": experiences}
+        # Step 3: 执行用户选择的分析模块
+        result = {"modules": {}, "experiences": all_experiences}
 
-        # 可用的分析器映射表
         analyzers = {
-            "summary": SummaryAnalyzer(ai_client),           # 面经总结与考点分析
-            "mock_interview": MockInterviewAnalyzer(ai_client),  # 模拟面试题目预测
-            "resume_tips": ResumeTipsAnalyzer(ai_client),    # 简历优化建议
+            "summary": SummaryAnalyzer(ai_client),
+            "mock_interview": MockInterviewAnalyzer(ai_client),
+            "resume_tips": ResumeTipsAnalyzer(ai_client),
         }
 
-        # 过滤出用户实际选择的分析模块
-        step_progress = 0
         selected = [m for m in req.modules if m in analyzers]
-        # 将 35% 的进度平均分配给各模块（55% → 90%）
         progress_per_module = 35 // max(len(selected), 1)
+        step_progress = 0
 
         for module_key in selected:
             analyzer = analyzers[module_key]
             task["message"] = f"正在执行: {analyzer.name}"
-            # 调用分析器执行分析，将结果存入对应模块
             result["modules"][module_key] = await analyzer.analyze(
-                experiences, resume_text
+                all_experiences, req.resume_text
             )
-            # 每完成一个模块，更新一次进度
             step_progress += progress_per_module
             task["progress"] = 55 + step_progress
 
         task["progress"] = 90
         task["message"] = "正在整理报告..."
 
-        # 将最终结果写入任务
         task["result"] = result
         task["status"] = "completed"
         task["progress"] = 100
         task["message"] = "分析完成"
 
     except Exception as e:
-        # 任何步骤出错都标记任务为失败，记录错误信息
         task["status"] = "failed"
         task["error"] = str(e)
 
@@ -218,7 +239,9 @@ async def upload_resume(file: UploadFile = File(...)):
     content = await file.read()
     text = parse_resume(content)
     if not text.strip():
-        raise HTTPException(status_code=400, detail="无法从 PDF 中提取文本，请确认文件内容为可识别文本")
+        raise HTTPException(
+            status_code=400, detail="无法从 PDF 中提取文本，请确认文件内容为可识别文本"
+        )
     return {"text": text}
 
 
@@ -237,5 +260,6 @@ async def favicon():
 
 if __name__ == "__main__":
     import uvicorn
+
     # 开发模式启动，启用热重载
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
