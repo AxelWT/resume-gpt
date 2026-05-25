@@ -243,6 +243,50 @@
   .form-group input:focus, .form-group textarea:focus { border-color: var(--c-accent); box-shadow: 0 0 0 2px var(--c-input-focus); }
   .form-group textarea { resize: vertical; min-height: 60px; font-family: inherit; }
 
+  .config-module {
+    border: 1px solid var(--c-border);
+    border-radius: 10px;
+    margin-bottom: 16px;
+    overflow: hidden;
+    background: var(--c-bg-solid);
+  }
+  .config-module-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    cursor: pointer;
+    user-select: none;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--c-text-1);
+    background: var(--c-bg-soft);
+    border-bottom: 1px solid var(--c-border);
+    transition: background .15s;
+  }
+  .config-module-header:hover {
+    background: var(--c-bg-accent);
+  }
+  .config-module-header .arrow {
+    display: inline-flex;
+    transition: transform .2s;
+    color: var(--c-accent);
+    font-size: 12px;
+  }
+  .config-module.collapsed .config-module-header .arrow {
+    transform: rotate(-90deg);
+  }
+  .config-module-header .module-title {
+    flex: 1;
+  }
+  .config-module-body {
+    padding: 16px;
+    transition: max-height .25s ease;
+  }
+  .config-module.collapsed .config-module-body {
+    display: none;
+  }
+
   .section-title {
     font-size: 14px;
     font-weight: 600;
@@ -680,83 +724,104 @@
 <div class="app-body">
   <!-- Left Panel -->
   <div class="left-panel">
-    <div class="section-title" style="position:relative;"> 模型配置 <span class="help-icon" onclick="toggleHelpPopover(event)"><svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.2" fill="none"/><path d="M6 6a2 2 0 1 1 2.5 1.94c-.28.1-.5.36-.5.66V9.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" fill="none"/><circle cx="8" cy="11.8" r="0.6" fill="currentColor" class="dot"/></svg></span>
-      <div class="help-popover" id="helpPopover">
-        <div class="popover-title">如何获取模型配置信息？</div>
-        <div class="popover-step">打开 <a class="popover-link" href="https://chat.deepseek.com" target="_blank">DeepSeek 平台</a>，进入聊天对话界面</div>
-        <div class="popover-step">在聊天框中直接提问，例如：「请告诉我 DeepSeek API 的 base_url、如何获取 API Key，以及可用的模型名称列表」</div>
-        <div class="popover-step">DeepSeek 会告知如何获取 base_url、API Key、model_name，将对应信息填入左侧即可</div>
-      </div>
-    </div>
-    <div class="form-group">
-      <label>模型供应商</label>
-      <select id="provider" onchange="switchProvider()">
-        <option value="deepseek">DeepSeek</option>
-        <option value="glm">GLM (智谱)</option>
-        <option value="qwen">Qwen (通义千问)</option>
-        <option value="custom">自定义</option>
-      </select>
-    </div>
-    <div class="form-group">
-      <label>API 地址 (base_url)</label>
-      <input type="text" id="baseUrl" placeholder="https://api.deepseek.com" value="https://api.deepseek.com">
-    </div>
-    <div class="form-group">
-      <label>API Key</label>
-      <input type="password" id="apiKey" placeholder="输入你的 API Key">
-    </div>
-    <div class="form-group">
-      <label>模型名称</label>
-      <input type="text" id="modelName" placeholder="deepseek-chat" value="deepseek-chat">
-    </div>
-    <button class="btn btn-secondary btn-test" onclick="testConfig()">测试连接</button>
-
-    <div class="section-title">搜索配置</div>
-    <div class="form-group">
-      <label>公司 + 岗位</label>
-      <input type="text" id="query" placeholder="例: 字节跳动 后端开发">
-    </div>
-    <div class="form-group">
-      <label>简历内容</label>
-      <div class="resume-tabs">
-        <span class="resume-tab active" onclick="switchResumeTab('file')">上传 PDF</span>
-        <span class="resume-tab" onclick="switchResumeTab('text')">粘贴文字</span>
-      </div>
-      <div id="resumeFileWrap">
-        <input type="file" id="resumeFile" accept=".pdf">
-      </div>
-      <div id="resumeTextWrap" style="display:none">
-        <textarea id="resumeTextInput" placeholder="粘贴简历内容..." maxlength="3000" oninput="updateCharCount()"></textarea>
-        <div class="char-count"><span id="charCount">0</span>/3000</div>
-      </div>
-    </div>
-
-    <div class="section-title">分析模块</div>
-    <div class="checkbox-group">
-      <label><input type="checkbox" value="summary" checked> 面经总结与考点分析</label>
-      <label><input type="checkbox" value="mock_interview"> 模拟面试题目预测</label>
-      <label><input type="checkbox" value="resume_tips"> 简历优化建议</label>
-    </div>
-
-    <div class="advanced-toggle" onclick="toggleAdvanced()">▸ 高级选项</div>
-    <div class="advanced-options" id="advancedOptions">
-      <div class="form-group">
-        <label>信息来源</label>
-        <div class="source-select" id="sourceSelect">
-          <div class="source-select-trigger" id="sourceTrigger" onclick="toggleSourceDropdown()">
-            <span class="placeholder">加载中...</span>
-          </div>
-          <div class="source-select-dropdown" id="sourceDropdown"></div>
+    <div class="config-module">
+      <div class="config-module-header" onclick="toggleModule(this)">
+        <span class="arrow">▼</span>
+        <span class="module-title">模型配置</span>
+        <span class="help-icon" onclick="event.stopPropagation(); toggleHelpPopover(event)"><svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.2" fill="none"/><path d="M6 6a2 2 0 1 1 2.5 1.94c-.28.1-.5.36-.5.66V9.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" fill="none"/><circle cx="8" cy="11.8" r="0.6" fill="currentColor" class="dot"/></svg></span>
+        <div class="help-popover" id="helpPopover">
+          <div class="popover-title">如何获取模型配置信息？</div>
+          <div class="popover-step">打开 <a class="popover-link" href="https://chat.deepseek.com" target="_blank">DeepSeek 平台</a>，进入聊天对话界面</div>
+          <div class="popover-step">在聊天框中直接提问，例如：「请告诉我 DeepSeek API 的 base_url、如何获取 API Key，以及可用的模型名称列表」</div>
+          <div class="popover-step">DeepSeek 会告知如何获取 base_url、API Key、model_name，将对应信息填入左侧即可</div>
         </div>
       </div>
-      <div class="form-group" style="position:relative;">
-        <label>最大抓取面经数量 <span class="help-icon" onclick="toggleMaxCountPopover(event)"><svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.2" fill="none"/><path d="M6 6a2 2 0 1 1 2.5 1.94c-.28.1-.5.36-.5.66V9.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" fill="none"/><circle cx="8" cy="11.8" r="0.6" fill="currentColor" class="dot"/></svg></span>
-          <div class="help-popover" id="maxCountPopover">
-            <div class="popover-title">抓取数量说明</div>
-            <div style="padding-left:0;">该数量为<strong>每个来源</strong>的最大抓取条数，非总量。例如：选择 5 个来源 × 最大 10 条 = 最多可能抓取 50 条面经。</div>
+      <div class="config-module-body">
+        <div class="form-group">
+          <label>模型供应商</label>
+          <select id="provider" onchange="switchProvider()">
+            <option value="deepseek">DeepSeek</option>
+            <option value="glm">GLM (智谱)</option>
+            <option value="qwen">Qwen (通义千问)</option>
+            <option value="custom">自定义</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>API 地址 (base_url)</label>
+          <input type="text" id="baseUrl" placeholder="https://api.deepseek.com" value="https://api.deepseek.com">
+        </div>
+        <div class="form-group">
+          <label>API Key</label>
+          <input type="password" id="apiKey" placeholder="输入你的 API Key">
+        </div>
+        <div class="form-group">
+          <label>模型名称</label>
+          <input type="text" id="modelName" placeholder="deepseek-chat" value="deepseek-chat">
+        </div>
+        <button class="btn btn-secondary btn-test" onclick="testConfig()">测试连接</button>
+      </div>
+    </div>
+
+    <div class="config-module">
+      <div class="config-module-header" onclick="toggleModule(this)">
+        <span class="arrow">▼</span>
+        <span class="module-title">搜索配置</span>
+      </div>
+      <div class="config-module-body">
+        <div class="form-group">
+          <label>公司 + 岗位</label>
+          <input type="text" id="query" placeholder="例: 字节跳动 后端开发">
+        </div>
+        <div class="form-group">
+          <label>简历内容</label>
+          <div class="resume-tabs">
+            <span class="resume-tab active" onclick="switchResumeTab('file')">上传 PDF</span>
+            <span class="resume-tab" onclick="switchResumeTab('text')">粘贴文字</span>
           </div>
-        </label>
-        <input type="number" id="maxCount" value="10" min="1" max="50">
+          <div id="resumeFileWrap">
+            <input type="file" id="resumeFile" accept=".pdf">
+          </div>
+          <div id="resumeTextWrap" style="display:none">
+            <textarea id="resumeTextInput" placeholder="粘贴简历内容..." maxlength="3000" oninput="updateCharCount()"></textarea>
+            <div class="char-count"><span id="charCount">0</span>/3000</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="config-module">
+      <div class="config-module-header" onclick="toggleModule(this)">
+        <span class="arrow">▼</span>
+        <span class="module-title">分析模块</span>
+      </div>
+      <div class="config-module-body">
+        <div class="checkbox-group">
+          <label><input type="checkbox" value="summary" checked> 面经总结与考点分析</label>
+          <label><input type="checkbox" value="mock_interview"> 模拟面试题目预测</label>
+          <label><input type="checkbox" value="resume_tips"> 简历优化建议</label>
+        </div>
+
+        <div class="advanced-toggle" onclick="toggleAdvanced()">▸ 高级选项</div>
+        <div class="advanced-options" id="advancedOptions">
+          <div class="form-group">
+            <label>信息来源</label>
+            <div class="source-select" id="sourceSelect">
+              <div class="source-select-trigger" id="sourceTrigger" onclick="toggleSourceDropdown()">
+                <span class="placeholder">加载中...</span>
+              </div>
+              <div class="source-select-dropdown" id="sourceDropdown"></div>
+            </div>
+          </div>
+          <div class="form-group" style="position:relative;">
+            <label>最大抓取面经数量 <span class="help-icon" onclick="toggleMaxCountPopover(event)"><svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.2" fill="none"/><path d="M6 6a2 2 0 1 1 2.5 1.94c-.28.1-.5.36-.5.66V9.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" fill="none"/><circle cx="8" cy="11.8" r="0.6" fill="currentColor" class="dot"/></svg></span>
+              <div class="help-popover" id="maxCountPopover">
+                <div class="popover-title">抓取数量说明</div>
+                <div style="padding-left:0;">该数量为<strong>每个来源</strong>的最大抓取条数，非总量。例如：选择 5 个来源 × 最大 10 条 = 最多可能抓取 50 条面经。</div>
+              </div>
+            </label>
+            <input type="number" id="maxCount" value="10" min="1" max="50">
+          </div>
+        </div>
       </div>
     </div>
 
@@ -891,6 +956,10 @@ function toggleMaxCountPopover(e) {
 }
 
 loadSources();
+
+function toggleModule(headerEl) {
+  headerEl.parentElement.classList.toggle('collapsed');
+}
 
 let resumeInputMode = 'file';
 
