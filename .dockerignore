@@ -6,7 +6,7 @@ __pycache__
 .env
 .idea/
 .vscode/
-guide/
+guide-docs/
 *.md
 docker-compose.yml
 .dockerignore
