@@ -1,7 +1,6 @@
 services:
   app:
     image: crpi-fmn9v2rn38d84ou1.cn-shanghai.personal.cr.aliyuncs.com/axelwt/resume-gpt:latest
-    build: .
     expose:
       - "8000"
     restart: unless-stopped
@@ -13,9 +12,7 @@ services:
       - backend
 
   nginx:
-    build:
-      context: .
-      dockerfile: nginx/Dockerfile
+    image: crpi-fmn9v2rn38d84ou1.cn-shanghai.personal.cr.aliyuncs.com/axelwt/resume-gpt-nginx:latest
     ports:
       - "80:80"
     depends_on:
