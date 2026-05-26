@@ -224,7 +224,7 @@ server {
                                                                                                                                              ▼ Modified Files                     █  
         # Host $host：告诉后端，用户原来访问的是哪个域名                                                                                        .dockerignore                  +1 -1 █  
         # X-Real-IP $remote_addr：告诉后端，用户的真实 IP 是什么（不然后端看到的 IP 全是 Nginx 的内网 IP）                                      README.md                   +132 -59 █  
-        # X-Forwarded-For：IP 传递链，记录请求经过了哪些代理（比如：用户IP → CDN → Nginx）                                                      guide-docs/deploy.md            +179 █  
+        # X-Forwarded-For：IP 传递链，记录请求经过了哪些代理（比如：用户IP → CDN → Nginx）                                                      guide-docs/step-3-deploy-guide.md            +179 █  
         # X-Forwarded-Proto：告诉后端，用户原来用的是 HTTP 还是 HTTPS
 
         # 传递原始请求的 Host 头（域名/端口），后端可能用于生成回调 URL 等
