@@ -43,9 +43,7 @@ class MockInterviewAnalyzer(BaseAnalyzer):
         """分析器显示名称"""
         return "模拟面试题目预测"
 
-    async def analyze(
-        self, experiences: list[dict], resume_text: str = ""
-    ) -> dict:
+    async def analyze(self, experiences: list[dict], resume_text: str = "") -> dict:
         """
         执行模拟面试题目预测分析。
 
@@ -70,26 +68,12 @@ class MockInterviewAnalyzer(BaseAnalyzer):
         )
 
         # 调用 AI 接口，要求返回 JSON 格式
-        return await self.ai_client.chat_json([
-            {"role": "system", "content": "你是一个资深面试官AI助手，输出必须是合法JSON。"},
-            {"role": "user", "content": prompt},
-        ])
-
-    def _format_experiences(self, experiences: list[dict]) -> str:
-        """
-        将面经列表格式化为 AI 可读的文本。
-
-        Args:
-            experiences: 面经列表，每条包含 title、tags、content
-
-        Returns:
-            格式化后的文本字符串，每条面经截取前 2000 字符避免 prompt 过长
-        """
-        lines = []
-        for i, exp in enumerate(experiences, 1):
-            lines.append(f"--- 面经 {i} ---")
-            lines.append(f"标题: {exp.get('title', '')}")
-            lines.append(f"标签: {', '.join(exp.get('tags', []))}")
-            # 截取前 2000 字符，控制 prompt 长度，避免超出模型上下文窗口
-            lines.append(f"内容:\n{exp.get('content', '')[:2000]}")
-        return "\n".join(lines)
+        return await self.ai_client.chat_json(
+            [
+                {
+                    "role": "system",
+                    "content": "你是一个资深面试官AI助手，输出必须是合法JSON。",
+                },
+                {"role": "user", "content": prompt},
+            ]
+        )

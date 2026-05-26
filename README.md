@@ -167,7 +167,7 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
 ```bash
 # nohup 方式
-nohup uvicorn main:app --host 0.0.0.0 --port 8000 --workers 2 > app.log 2>&1 &
+nohup uvicorn main:app --host 0.0.0.0 --port 8000 --workers 1 > app.log 2>&1 &
 
 # 查看日志
 tail -f app.log
@@ -184,7 +184,7 @@ After=network.target
 Type=simple
 User=your-user
 WorkingDirectory=/path/to/my-project
-ExecStart=/path/to/venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000 --workers 2
+ExecStart=/path/to/venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000 --workers 1
 Restart=on-failure
 RestartSec=5
 

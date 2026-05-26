@@ -7,6 +7,7 @@ AI 客户端模块
 """
 
 import json
+import re
 from typing import AsyncGenerator, Optional
 
 import httpx
@@ -112,6 +113,7 @@ class AIClient:
         发送聊天消息并获取 JSON 格式的回复。
         AI 模型有时会在 JSON 外包裹 ```json ... ``` 的 markdown 代码块，
         此方法会自动剥离这些包裹并解析 JSON。
+        支持一定的容错：尾部逗号、单引号等常见不规范格式。
 
         Args:
             messages: OpenAI 格式的消息列表
@@ -125,11 +127,23 @@ class AIClient:
         """
         text = await self.chat(messages, **kwargs)
         text = text.strip()
-        # 如果 AI 返回了 markdown 代码块包裹的 JSON，剥掉外层
         if text.startswith("```"):
-            text = text.split("\n", 1)[-1]       # 去掉 ```json 行
-            text = text.rsplit("```", 1)[0]      # 去掉末尾的 ```
-        return json.loads(text)
+            text = text.split("\n", 1)[-1]
+            text = text.rsplit("```", 1)[0]
+        text = text.strip()
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError:
+            pass
+        cleaned = re.sub(r",\s*([}\]])", r"\1", text)
+        try:
+            return json.loads(cleaned)
+        except json.JSONDecodeError:
+            raise json.JSONDecodeError(
+                f"AI 返回内容无法解析为 JSON，原始内容: {text[:200]}",
+                text,
+                0,
+            )
 
     async def close(self):
         """关闭底层 HTTP 客户端，释放连接池资源"""

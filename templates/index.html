@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>resume-gpt</title>
+<title>resumeGPT</title>
 <style>
   :root {
     --c-bg: #f6f8fa;
@@ -107,6 +107,8 @@
     background: var(--c-bg);
     color: var(--c-text-1);
     height: 100vh;
+    display: flex;
+    flex-direction: column;
     overflow: hidden;
   }
   .app-header {
@@ -142,7 +144,7 @@
   html:not(.dark) .theme-toggle .icon-sun { display: none; }
   html.dark .theme-toggle .icon-moon { display: none; }
   html.dark .theme-toggle .icon-sun { display: block; }
-  .app-body { display: flex; height: calc(100vh - 56px - 66px); }
+  .app-body { display: flex; flex: 1; min-height: 0; }
   .left-panel {
     width: 380px;
     min-width: 380px;
@@ -454,11 +456,11 @@
   .source-select-dropdown {
     display: none;
     position: absolute;
-    top: 100%;
+    bottom: 100%;
     left: 0;
     right: 0;
     z-index: 100;
-    margin-top: 4px;
+    margin-bottom: 4px;
     background: var(--c-bg-elv);
     border: 1px solid var(--c-border);
     border-radius: 6px;
@@ -703,11 +705,12 @@
   .app-footer {
     background: var(--c-bg-solid);
     border-top: 1px solid var(--c-border);
-    padding: 24px 24px;
+    padding: 14px 24px;
     text-align: center;
     font-size: 12px;
     color: var(--c-text-4);
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: 8px;
@@ -764,23 +767,24 @@
         <div class="form-group">
           <label>模型供应商</label>
           <select id="provider" onchange="switchProvider()">
+            <option value="premium">Premium (高级)</option>
             <option value="deepseek">DeepSeek</option>
             <option value="glm">GLM (智谱)</option>
             <option value="qwen">Qwen (通义千问)</option>
             <option value="custom">自定义</option>
           </select>
         </div>
-        <div class="form-group">
+        <div class="form-group" id="baseUrlGroup">
           <label>API 地址 (base_url)</label>
           <input type="text" id="baseUrl" placeholder="https://api.deepseek.com" value="https://api.deepseek.com">
         </div>
-        <div class="form-group">
+        <div class="form-group" id="apiKeyGroup">
           <label>API Key</label>
           <input type="password" id="apiKey" placeholder="输入你的 API Key">
         </div>
-        <div class="form-group">
+        <div class="form-group" id="modelNameGroup">
           <label>模型名称</label>
-          <input type="text" id="modelName" placeholder="deepseek-chat" value="deepseek-chat">
+          <input type="text" id="modelName" placeholder="deepseek-v4-flash" value="deepseek-v4-flash">
         </div>
         <button class="btn btn-secondary btn-test" onclick="testConfig()">测试连接</button>
       </div>
@@ -799,8 +803,8 @@
         <div class="form-group">
           <label>简历内容</label>
           <div class="resume-tabs">
-            <span class="resume-tab active" onclick="switchResumeTab('file')">上传 PDF</span>
-            <span class="resume-tab" onclick="switchResumeTab('text')">粘贴文字</span>
+            <span class="resume-tab active" onclick="switchResumeTab('file', this)">上传 PDF</span>
+            <span class="resume-tab" onclick="switchResumeTab('text', this)">粘贴文字</span>
           </div>
           <div id="resumeFileWrap">
             <input type="file" id="resumeFile" accept=".pdf">
@@ -870,9 +874,8 @@
 </div>
 
 <footer class="app-footer">
-  <span>© 2026 resume-gpt</span>
-  <span class="dot">·</span>
-  <a href="mailto:axelwt@163.com">axelwt@163.com</a>
+  <div>resumeGPT© 2026 <span class="dot">·</span> 让 AI 帮你优化简历</div>
+  <div>联系方式: <a href="mailto:axelwt@163.com">axelwt@163.com</a></div>
 </footer>
 
 <script>
@@ -883,6 +886,7 @@ let allSources = [];
 let selectedSources = ['nowcoder'];
 
 const PROVIDERS = {
+  premium:  { base_url: 'https://api.deepseek.com',             model: 'deepseek-v4-flash' },
   glm:      { base_url: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-4-flash' },
   deepseek: { base_url: 'https://api.deepseek.com',             model: 'deepseek-chat' },
   qwen:     { base_url: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-plus' },
@@ -905,10 +909,17 @@ function toggleTheme() {
 initTheme();
 
 function switchProvider() {
-  const p = PROVIDERS[document.getElementById('provider').value];
+  const provider = document.getElementById('provider').value;
+  const p = PROVIDERS[provider];
   document.getElementById('baseUrl').value = p.base_url;
   document.getElementById('modelName').value = p.model;
+  const isPremium = provider === 'premium';
+  document.getElementById('baseUrlGroup').style.display = isPremium ? 'none' : '';
+  document.getElementById('apiKeyGroup').style.display = isPremium ? 'none' : '';
+  document.getElementById('modelNameGroup').style.display = isPremium ? 'none' : '';
 }
+
+switchProvider();
 
 async function loadSources() {
   try {
@@ -993,10 +1004,10 @@ function toggleModule(headerEl) {
 
 let resumeInputMode = 'file';
 
-function switchResumeTab(mode) {
+function switchResumeTab(mode, el) {
   resumeInputMode = mode;
   document.querySelectorAll('.resume-tab').forEach(t => t.classList.remove('active'));
-  event.target.classList.add('active');
+  el.classList.add('active');
   document.getElementById('resumeFileWrap').style.display = mode === 'file' ? '' : 'none';
   document.getElementById('resumeTextWrap').style.display = mode === 'text' ? '' : 'none';
 }
@@ -1024,15 +1035,18 @@ async function testConfig() {
   const baseUrl = document.getElementById('baseUrl').value.trim();
   const apiKey = document.getElementById('apiKey').value.trim();
   const modelName = document.getElementById('modelName').value.trim();
-  if (!baseUrl || !apiKey || !modelName) {
+  const isPremium = document.getElementById('provider').value === 'premium';
+  if (!baseUrl || (!apiKey && !isPremium) || !modelName) {
     showToast('请填写完整的模型配置', 'error');
     return;
   }
   try {
+    const body = { base_url: baseUrl, api_key: apiKey, model_name: modelName };
+    if (isPremium) delete body.api_key;
     const resp = await fetch('/api/test-config', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ base_url: baseUrl, api_key: apiKey, model_name: modelName }),
+      body: JSON.stringify(body),
     });
     if (!resp.ok) {
       const err = await resp.json();
@@ -1051,8 +1065,9 @@ async function startAnalysis() {
   const query = document.getElementById('query').value.trim();
   const maxCount = parseInt(document.getElementById('maxCount').value) || 10;
   const sources = selectedSources.length > 0 ? selectedSources : ['nowcoder'];
+  const isPremium = document.getElementById('provider').value === 'premium';
 
-  if (!baseUrl || !apiKey || !modelName) {
+  if (!baseUrl || (!apiKey && !isPremium) || !modelName) {
     showToast('请填写完整的模型配置', 'error');
     return;
   }
@@ -1111,19 +1126,21 @@ async function startAnalysis() {
   document.getElementById('startBtn').textContent = '⏳ 分析中...';
 
   try {
+    const body = {
+      base_url: baseUrl,
+      api_key: apiKey,
+      model_name: modelName,
+      query: query,
+      modules: modules,
+      sources: sources,
+      max_count: maxCount,
+      resume_text: resumeText,
+    };
+    if (isPremium) delete body.api_key;
     const resp = await fetch('/api/analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        base_url: baseUrl,
-        api_key: apiKey,
-        model_name: modelName,
-        query: query,
-        modules: modules,
-        sources: sources,
-        max_count: maxCount,
-        resume_text: resumeText,
-      }),
+      body: JSON.stringify(body),
     });
     if (!resp.ok) {
       const err = await resp.json();
@@ -1295,7 +1312,7 @@ function renderSidebar(experiences) {
     `<div class="sidebar-item" onclick="toggleExp(this)">
       <div class="title-row">
         <span class="name">${escapeHtml(exp.title || '面经 ' + (i+1))}</span>
-        ${exp.url ? `<a class="link" href="${escapeHtml(exp.url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">查看原文 →</a>` : ''}
+        ${safeUrl(exp.url) ? `<a class="link" href="${escapeHtml(exp.url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">查看原文 →</a>` : ''}
       </div>
       ${exp.tags && exp.tags.length ? `<div class="tag-list">${exp.tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
       <div class="full-content">${escapeHtml(exp.content || '暂无内容')}</div>
@@ -1312,6 +1329,15 @@ function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
+}
+
+function safeUrl(url) {
+  if (!url) return '';
+  try {
+    const u = new URL(url, location.href);
+    if (u.protocol === 'http:' || u.protocol === 'https:') return url;
+  } catch (e) {}
+  return '';
 }
 </script>
 </body>

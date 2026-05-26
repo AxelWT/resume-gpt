@@ -34,9 +34,7 @@ class BaseAnalyzer(ABC):
         ...
 
     @abstractmethod
-    async def analyze(
-        self, experiences: list[dict], resume_text: str = ""
-    ) -> dict:
+    async def analyze(self, experiences: list[dict], resume_text: str = "") -> dict:
         """
         执行分析逻辑。
 
@@ -48,3 +46,21 @@ class BaseAnalyzer(ABC):
             分析结果字典，结构由各分析器自行定义
         """
         ...
+
+    def _format_experiences(self, experiences: list[dict]) -> str:
+        """
+        将面经列表格式化为 AI 可读的文本。
+
+        Args:
+            experiences: 面经列表，每条包含 title、tags、content
+
+        Returns:
+            格式化后的文本字符串，每条面经截取前 2000 字符
+        """
+        lines = []
+        for i, exp in enumerate(experiences, 1):
+            lines.append(f"--- 面经 {i} ---")
+            lines.append(f"标题: {exp.get('title', '')}")
+            lines.append(f"标签: {', '.join(exp.get('tags', []))}")
+            lines.append(f"内容:\n{exp.get('content', '')[:2000]}")
+        return "\n".join(lines)
