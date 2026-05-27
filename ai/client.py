@@ -6,11 +6,15 @@ AI 客户端模块
 提供文本聊天和 JSON 格式响应两种调用方式。
 """
 
+import asyncio
 import json
+import logging
 import re
 from typing import AsyncGenerator, Optional
 
 import httpx
+
+logger = logging.getLogger(__name__)
 
 
 class RequestTimeoutError(Exception):
@@ -27,6 +31,8 @@ class AIClient:
     - chat(): 发送消息并获取文本回复
     - chat_json(): 发送消息并获取 JSON 格式的回复（自动解析，支持截断修复和重试）
     """
+
+    MAX_RETRIES = 3
 
     def __init__(self, base_url: str, api_key: str, model_name: str):
         """
@@ -75,6 +81,8 @@ class AIClient:
             )
         except httpx.TimeoutException:
             raise RequestTimeoutError("连接 AI 服务超时，请检查网络或稍后重试")
+        except httpx.TransportError as exc:
+            raise RequestTimeoutError(f"连接 AI 服务网络异常: {exc}")
         # 针对常见错误码给出友好的中文提示
         if resp.status_code == 401:
             raise ValueError("API Key 认证失败，请检查")
@@ -87,6 +95,9 @@ class AIClient:
         """
         发送聊天请求并返回内容与结束原因。
 
+        对网络层瞬时错误（ReadError、ConnectError 等）自动重试最多 MAX_RETRIES 次，
+        每次间隔递增（1s, 2s, 4s）。
+
         Returns:
             (content, finish_reason) 元组
             finish_reason 常见值: "stop"(正常结束), "length"(达到 max_tokens 截断)
@@ -96,26 +107,43 @@ class AIClient:
             "messages": messages,
             **kwargs,
         }
-        try:
-            resp = await self._client.post(
-                self.chat_url,
-                headers=self._headers(),
-                json=body,
-            )
-        except httpx.TimeoutException:
-            raise RequestTimeoutError("AI 响应超时，请检查网络或稍后重试")
-        # 处理常见错误状态码
-        if resp.status_code == 401:
-            raise ValueError("API Key 认证失败，请检查")
-        if resp.status_code == 429:
-            raise ValueError("请求过于频繁，请稍后重试")
-        resp.raise_for_status()
-        # 从 OpenAI 兼容的响应格式中提取回复文本
-        data = resp.json()
-        choice = data["choices"][0]
-        content = choice["message"]["content"]
-        finish_reason = choice.get("finish_reason", "stop")
-        return content, finish_reason
+        last_exc = None
+        for attempt in range(self.MAX_RETRIES):
+            try:
+                resp = await self._client.post(
+                    self.chat_url,
+                    headers=self._headers(),
+                    json=body,
+                )
+            except httpx.TimeoutException:
+                raise RequestTimeoutError("AI 响应超时，请检查网络或稍后重试")
+            except httpx.TransportError as exc:
+                last_exc = exc
+                if attempt < self.MAX_RETRIES - 1:
+                    wait = 2 ** attempt
+                    logger.warning(
+                        "AI 请求网络异常，%d/%d 次重试，%ds 后重试: %s",
+                        attempt + 1, self.MAX_RETRIES, wait, exc,
+                    )
+                    await asyncio.sleep(wait)
+                    continue
+                raise RequestTimeoutError(
+                    f"AI 请求网络异常，已重试 {self.MAX_RETRIES} 次仍失败: {exc}"
+                )
+            # 处理常见错误状态码
+            if resp.status_code == 401:
+                raise ValueError("API Key 认证失败，请检查")
+            if resp.status_code == 429:
+                raise ValueError("请求过于频繁，请稍后重试")
+            resp.raise_for_status()
+            # 从 OpenAI 兼容的响应格式中提取回复文本
+            data = resp.json()
+            choice = data["choices"][0]
+            content = choice["message"]["content"]
+            finish_reason = choice.get("finish_reason", "stop")
+            return content, finish_reason
+        # 理论上不会到这里，但作为兜底
+        raise RequestTimeoutError(f"AI 请求失败: {last_exc}")
 
     async def chat(self, messages: list[dict], **kwargs) -> str:
         """
