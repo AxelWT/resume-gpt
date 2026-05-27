@@ -13,6 +13,11 @@ from typing import AsyncGenerator, Optional
 import httpx
 
 
+class RequestTimeoutError(Exception):
+    """AI 请求超时异常"""
+    pass
+
+
 class AIClient:
     """
     OpenAI 兼容 API 的异步客户端。
@@ -58,15 +63,18 @@ class AIClient:
             ValueError: API Key 无效（401）或模型不可用（404）
             httpx.HTTPStatusError: 其他 HTTP 错误
         """
-        resp = await self._client.post(
-            self.chat_url,
-            headers=self._headers(),
-            json={
-                "model": self.model_name,
-                "messages": [{"role": "user", "content": "Hi"}],
-                "max_tokens": 10,  # 只请求少量 token，节省费用
-            },
-        )
+        try:
+            resp = await self._client.post(
+                self.chat_url,
+                headers=self._headers(),
+                json={
+                    "model": self.model_name,
+                    "messages": [{"role": "user", "content": "Hi"}],
+                    "max_tokens": 10,  # 只请求少量 token，节省费用
+                },
+            )
+        except httpx.TimeoutException:
+            raise RequestTimeoutError("连接 AI 服务超时，请检查网络或稍后重试")
         # 针对常见错误码给出友好的中文提示
         if resp.status_code == 401:
             raise ValueError("API Key 认证失败，请检查")
@@ -88,11 +96,14 @@ class AIClient:
             "messages": messages,
             **kwargs,
         }
-        resp = await self._client.post(
-            self.chat_url,
-            headers=self._headers(),
-            json=body,
-        )
+        try:
+            resp = await self._client.post(
+                self.chat_url,
+                headers=self._headers(),
+                json=body,
+            )
+        except httpx.TimeoutException:
+            raise RequestTimeoutError("AI 响应超时，请检查网络或稍后重试")
         # 处理常见错误状态码
         if resp.status_code == 401:
             raise ValueError("API Key 认证失败，请检查")
