@@ -57,19 +57,6 @@ class NowCrawler(BaseCrawler):
 
         return results[:max_count]
 
-    async def search(self, query: str, max_count: int = 10) -> list[dict]:
-        try:
-            results = await self._search_direct(query, max_count)
-            if results:
-                return results
-            logger.info("[%s] 直接搜索无结果，降级到 Tavily", self.name)
-        except Exception as e:
-            logger.warning("[%s] 直接搜索失败(%s)，降级到 Tavily", self.name, e)
-
-        return await self._search_via_tavily(
-            query, self.SITE_DOMAIN, max_count, self.EXTRA_KEYWORDS
-        )
-
     def _parse_search_results(self, soup: BeautifulSoup) -> list[dict]:
         items = []
         for link in soup.select("a[href*='/discuss/']"):
@@ -82,19 +69,6 @@ class NowCrawler(BaseCrawler):
             url = href if href.startswith("http") else f"{self.BASE_URL}{href}"
             items.append({"title": title, "url": url})
         return items
-
-    async def fetch_content(self, url: str) -> dict:
-        try:
-            resp = await self.client.get(url)
-            resp.raise_for_status()
-        except Exception:
-            return {"content": "", "tags": []}
-
-        soup = BeautifulSoup(resp.text, "lxml")
-        content = self._parse_content(soup)
-        tags = self._parse_tags(soup)
-        await self.sleep()
-        return {"content": content, "tags": tags}
 
     def _parse_content(self, soup: BeautifulSoup) -> str:
         for selector in [
