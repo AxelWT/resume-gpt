@@ -20,7 +20,7 @@ class AIClient:
     使用 httpx.AsyncClient 发起 HTTP 请求，支持：
     - test(): 测试连接和认证是否正常
     - chat(): 发送消息并获取文本回复
-    - chat_json(): 发送消息并获取 JSON 格式的回复（自动解析）
+    - chat_json(): 发送消息并获取 JSON 格式的回复（自动解析，支持截断修复和重试）
     """
 
     def __init__(self, base_url: str, api_key: str, model_name: str):
@@ -32,11 +32,9 @@ class AIClient:
             api_key: API 密钥，用于 Bearer Token 认证
             model_name: 模型名称，如 "gpt-4o"、"deepseek-chat"
         """
-        # 去除末尾的斜杠，防止拼接 URL 时出现双斜杠
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
         self.model_name = model_name
-        # 拼接聊天补全接口的完整 URL
         self.chat_url = f"{self.base_url}/chat/completions"
         # 创建异步 HTTP 客户端，设置 120 秒超时（AI 响应可能较慢）并自动跟随重定向
         self._client = httpx.AsyncClient(timeout=120, follow_redirects=True)
@@ -77,16 +75,13 @@ class AIClient:
         resp.raise_for_status()
         return True
 
-    async def chat(self, messages: list[dict], **kwargs) -> str:
+    async def _send(self, messages: list[dict], **kwargs) -> tuple[str, str]:
         """
-        发送聊天消息并获取 AI 的文本回复。
-
-        Args:
-            messages: OpenAI 格式的消息列表，如 [{"role": "user", "content": "..."}]
-            **kwargs: 额外的请求参数，如 temperature、max_tokens 等
+        发送聊天请求并返回内容与结束原因。
 
         Returns:
-            AI 回复的文本内容
+            (content, finish_reason) 元组
+            finish_reason 常见值: "stop"(正常结束), "length"(达到 max_tokens 截断)
         """
         body = {
             "model": self.model_name,
@@ -106,44 +101,192 @@ class AIClient:
         resp.raise_for_status()
         # 从 OpenAI 兼容的响应格式中提取回复文本
         data = resp.json()
-        return data["choices"][0]["message"]["content"]
+        choice = data["choices"][0]
+        content = choice["message"]["content"]
+        finish_reason = choice.get("finish_reason", "stop")
+        return content, finish_reason
+
+    async def chat(self, messages: list[dict], **kwargs) -> str:
+        """
+        发送聊天消息并获取 AI 的文本回复。
+
+        Args:
+            messages: OpenAI 格式的消息列表，如 [{"role": "user", "content": "..."}]
+            **kwargs: 额外的请求参数，如 temperature、max_tokens 等
+
+        Returns:
+            AI 回复的文本内容
+        """
+        content, _ = await self._send(messages, **kwargs)
+        return content
+
+    @staticmethod
+    def _repair_truncated_json(text: str) -> str:
+        """
+        尝试修复被截断的 JSON 字符串。
+
+        策略：
+            1. 跟踪字符串边界，找到所有"安全截断点"
+            2. 安全截断点：完整的 key:value 对结尾（值后面跟 , } ] 或文本末尾）
+            3. 从最后一个安全截断点截断
+            4. 用栈跟踪开括号顺序，按正确嵌套关系补全闭合括号
+        """
+        in_string = False
+        escape_next = False
+        safe_positions = []
+        bracket_stack = []
+
+        i = 0
+        while i < len(text):
+            ch = text[i]
+            if escape_next:
+                escape_next = False
+                i += 1
+                continue
+            if in_string:
+                if ch == "\\":
+                    escape_next = True
+                elif ch == '"':
+                    in_string = False
+                i += 1
+                continue
+            if ch == '"':
+                in_string = True
+                i += 1
+                continue
+            if ch in "{[":
+                bracket_stack.append(ch)
+            elif ch == "}" and bracket_stack and bracket_stack[-1] == "{":
+                bracket_stack.pop()
+                safe_positions.append(i + 1)
+            elif ch == "]" and bracket_stack and bracket_stack[-1] == "[":
+                bracket_stack.pop()
+                safe_positions.append(i + 1)
+            elif ch == ",":
+                safe_positions.append(i)
+            i += 1
+
+        if not safe_positions:
+            return text
+
+        cut = safe_positions[-1]
+        trimmed = text[:cut].rstrip().rstrip(",").rstrip()
+
+        closing = []
+        for ch in reversed(bracket_stack):
+            closing.append("}" if ch == "{" else "]")
+        trimmed += "".join(closing)
+        return trimmed
+
+    @staticmethod
+    def _strip_markdown(text: str) -> str:
+        """剥离 markdown 代码块包裹"""
+        text = text.strip()
+        if text.startswith("```"):
+            text = text.split("\n", 1)[-1]
+            text = text.rsplit("```", 1)[0]
+        return text.strip()
+
+    @staticmethod
+    def _clean_trailing_commas(text: str) -> str:
+        """移除 JSON 中不合法的尾部逗号"""
+        return re.sub(r",\s*([}\]])", r"\1", text)
 
     async def chat_json(self, messages: list[dict], **kwargs) -> dict:
         """
         发送聊天消息并获取 JSON 格式的回复。
-        AI 模型有时会在 JSON 外包裹 ```json ... ``` 的 markdown 代码块，
-        此方法会自动剥离这些包裹并解析 JSON。
-        支持一定的容错：尾部逗号、单引号等常见不规范格式。
+
+        容错策略（按优先级）：
+            1. 直接解析 AI 返回的文本为 JSON
+            2. 剥离 markdown 代码块后解析
+            3. 清理尾部逗号后解析
+            4. 如果 finish_reason == "length"（输出被截断），发送 continue 消息重试拼接
+            5. 尝试修复截断 JSON（补全缺失的括号）
 
         Args:
             messages: OpenAI 格式的消息列表
-            **kwargs: 额外的请求参数
+            **kwargs: 额外的请求参数，max_tokens 默认 8192
 
         Returns:
             解析后的 Python 字典
 
         Raises:
-            json.JSONDecodeError: AI 返回的内容无法解析为 JSON
+            json.JSONDecodeError: 所有修复策略均失败
         """
-        text = await self.chat(messages, **kwargs)
-        text = text.strip()
-        if text.startswith("```"):
-            text = text.split("\n", 1)[-1]
-            text = text.rsplit("```", 1)[0]
-        text = text.strip()
+        kwargs.setdefault("max_tokens", 8192)
+
+        content, finish_reason = await self._send(messages, **kwargs)
+        text = self._strip_markdown(content)
+
         try:
             return json.loads(text)
         except json.JSONDecodeError:
             pass
-        cleaned = re.sub(r",\s*([}\]])", r"\1", text)
+
+        cleaned = self._clean_trailing_commas(text)
         try:
             return json.loads(cleaned)
         except json.JSONDecodeError:
-            raise json.JSONDecodeError(
-                f"AI 返回内容无法解析为 JSON，原始内容: {text[:200]}",
-                text,
-                0,
-            )
+            pass
+
+        if finish_reason == "length":
+            continuation = await self._retry_with_continue(messages, content, **kwargs)
+            if continuation is not None:
+                return continuation
+
+        repaired = self._repair_truncated_json(cleaned)
+        try:
+            return json.loads(repaired)
+        except json.JSONDecodeError:
+            pass
+
+        raise json.JSONDecodeError(
+            f"AI 返回内容无法解析为 JSON，原始内容: {text[:200]}",
+            text,
+            0,
+        )
+
+    async def _retry_with_continue(
+        self, original_messages: list[dict], partial_content: str, **kwargs
+    ) -> Optional[dict]:
+        """
+        当 AI 输出因 max_tokens 截断时，发送 continue 消息让模型补全剩余内容，
+        拼接后尝试解析 JSON。
+
+        Returns:
+            解析成功的字典，或 None（拼接后仍无法解析）
+        """
+        continue_messages = list(original_messages) + [
+            {"role": "assistant", "content": partial_content},
+            {
+                "role": "user",
+                "content": "请继续输出，从中断处接着输出，不要重复已有内容。",
+            },
+        ]
+        try:
+            continuation, _ = await self._send(continue_messages, **kwargs)
+        except Exception:
+            return None
+
+        full_text = partial_content.rstrip() + continuation
+        full_text = self._strip_markdown(full_text)
+
+        try:
+            return json.loads(full_text)
+        except json.JSONDecodeError:
+            pass
+
+        cleaned = self._clean_trailing_commas(full_text)
+        try:
+            return json.loads(cleaned)
+        except json.JSONDecodeError:
+            pass
+
+        repaired = self._repair_truncated_json(cleaned)
+        try:
+            return json.loads(repaired)
+        except json.JSONDecodeError:
+            return None
 
     async def close(self):
         """关闭底层 HTTP 客户端，释放连接池资源"""

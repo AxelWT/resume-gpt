@@ -19,9 +19,14 @@ MOCK_INTERVIEW_PROMPT = """你是一个资深面试官。请根据以下数据�
 - 从岗位描述中推断可能会被考察的技能方向和项目经验
 - 题目应兼顾技术深度和实际岗位需求
 
+重要限制：
+- 题目总数不超过 10 道
+- 每个分类下不超过 4 道题
+- suggested_answer 控制在 2-3 句话以内
+
 要求输出 JSON 格式（不要 markdown 包裹），结构如下：
 {{
-  "total_questions": 题目总数,
+  "total_questions": 题目总数(不超过10),
   "categories": [
     {{
       "type": "技术题 / 项目经验 / 行为面试 / 其他",
@@ -30,7 +35,7 @@ MOCK_INTERVIEW_PROMPT = """你是一个资深面试官。请根据以下数据�
           "question": "具体的面试题目",
           "reason": "为什么可能会问这道题（结合面经和岗位描述）",
           "difficulty": "简单/中等/困难",
-          "suggested_answer": "回答思路或要点"
+          "suggested_answer": "回答思路或要点（2-3句话）"
         }}
       ]
     }}
