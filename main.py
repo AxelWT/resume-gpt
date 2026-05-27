@@ -755,11 +755,18 @@ async def index():
 @app.get("/favicon.ico")
 async def favicon():
     """
-    浏览器自动请求的图标文件，返回 204 No Content。
+    返回 SVG 格式的 favicon。
 
-    204 状态码表示"请求成功但无响应体"，浏览器不会报错也不会重复请求。
-    如果不处理此路由，FastAPI 会返回 404，浏览器控制台会显示错误信息。
+    浏览器会自动请求 /favicon.ico，此处返回 SVG 内容并设置正确的 Content-Type，
+    确保本地开发模式下标签页图标正常显示。
+    生产环境中，Nginx 直接服务 /favicon.svg，此路由作为兜底。
     """
+    svg_path = BASE_DIR / "static" / "favicon.svg"
+    if svg_path.exists():
+        return Response(
+            content=svg_path.read_bytes(),
+            media_type="image/svg+xml",
+        )
     return Response(status_code=204)
 
 
