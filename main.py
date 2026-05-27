@@ -1,7 +1,7 @@
 """
 Resume-GPT 主应用入口
 
-基于 FastAPI 构建的 Web 应用，提供面经分析、模拟面试、简历优化等 AI 驱动的求职辅助功能。
+基于 FastAPI 构建的 Web 应用，提供面经分析、岗位信息分析、模拟面试、简历优化等 AI 驱动的求职辅助功能。
 
 架构概览：
     用户浏览器
@@ -13,7 +13,7 @@ Resume-GPT 主应用入口
         ├── GET  /api/status/{id}  → 前端轮询任务进度与结果
         ├── POST /api/upload-resume → 上传 PDF 简历，解析返回文本
         ├── GET  /api/health       → 健康检查（供监控使用）
-        └── GET  /api/sources      → 获取所有可用的面经来源列表
+        └── GET  /api/sources      → 获取所有可用的数据来源列表
 
 异步任务模型：
     前端提交分析请求 → 后端创建后台协程 → 立即返回 task_id
@@ -33,9 +33,16 @@ Resume-GPT 主应用入口
 
 import asyncio
 import base64
+import logging
 import os
 import time
 import uuid
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s - %(message)s",
+)
+logger = logging.getLogger(__name__)
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -500,6 +507,7 @@ async def run_analysis(task_id: str, req: AnalyzeRequest):
         task["status"] = "failed"
         task["error"] = "分析任务超时（超过10分钟），请减少数据量或来源后重试"
         task["finished_at"] = time.time()
+        logger.error(f"[{task_id}] 分析任务超时")
 
 
 async def _run_analysis_inner(task_id: str, req: AnalyzeRequest):
@@ -508,21 +516,21 @@ async def _run_analysis_inner(task_id: str, req: AnalyzeRequest):
 
     完整流程：
         Step 1: 初始化 AI 客户端并验证连接（progress 5% → 10%）
-        Step 2: 根据用户选择的来源，逐个爬取面经（progress 10% → 50%）
+        Step 2: 根据用户选择的来源，逐个爬取数据（progress 10% → 50%）
         Step 3: 按用户选择的分析模块逐个执行 AI 分析（progress 55% → 90%）
         Step 4: 汇总结果，标记任务完成（progress 90% → 100%）
 
     进度分配策略：
         5%   → 启动任务
         10%  → AI 连接测试完成
-        10-50% → 爬取面经（按来源数量平均分配 40% 的进度）
+        10-50% → 爬取数据（按来源数量平均分配 40% 的进度）
         55%  → 爬取完成，开始分析
         55-90% → 执行分析模块（按模块数量平均分配 35% 的进度）
         100% → 全部完成
 
     错误处理：
         - 爬取阶段：单个来源失败不影响其他来源，静默跳过
-        - 单条面经详情获取失败：标记 content 为空，不中断整体流程
+        - 单条数据详情获取失败：标记 content 为空，不中断整体流程
         - AI 分析阶段：任何异常都会导致整个任务失败
 
     Args:
@@ -542,29 +550,39 @@ async def _run_analysis_inner(task_id: str, req: AnalyzeRequest):
         await ai_client.test()
         task["progress"] = 10
 
-        # Step 2: 从多个来源爬取面经
+        # Step 2: 从多个来源爬取数据
         sources = req.sources or ["nowcoder"]
+        crawl_start = time.time()
+        logger.info(f"[{task_id}] 开始爬取数据，来源: {sources}")
         all_experiences = []
         total_sources = len(sources)
         # 将 10% → 50% 的进度（共 40%）按来源数量平均分配
         progress_per_source = 40 // max(total_sources, 1)
+
+        # 招聘网站爬虫关键字，用于区分数据类型
+        JOB_DESCRIPTION_SOURCES = {"job51", "liepin", "zhaopin"}
 
         for idx, source_key in enumerate(sources):
             crawler = None
             try:
                 # 通过注册表获取对应来源的爬虫实例
                 crawler = get_crawler(source_key)
-                task["message"] = f"正在从{crawler.name}爬取面经..."
+                is_job_site = source_key in JOB_DESCRIPTION_SOURCES
+                data_type_label = "岗位描述" if is_job_site else "面经"
+                task["message"] = f"正在从{crawler.name}爬取{data_type_label}..."
 
-                # 搜索面经列表（返回标题、URL 等摘要信息）
+                # 搜索列表（返回标题、URL 等摘要信息）
                 exps = await crawler.search(req.query, req.max_count)
-                # 为每条面经标记来源名称，前端展示时区分不同来源
+                # 为每条数据标记来源名称和数据类型
                 for exp in exps:
                     exp["source"] = crawler.name
+                    exp["type"] = "job_description" if is_job_site else "interview"
 
-                # 逐条获取面经详情（完整的面经正文内容）
-                # 失败的面经保留摘要信息，content 设为空字符串
+                # 逐条获取详情内容
+                # 失败的数据保留摘要信息，content 设为空字符串
                 for exp in exps:
+                    if exp.get("content"):
+                        continue
                     try:
                         detail = await crawler.fetch_content(exp["url"])
                         exp.update(detail)
@@ -572,9 +590,11 @@ async def _run_analysis_inner(task_id: str, req: AnalyzeRequest):
                         exp["content"] = ""
 
                 all_experiences.extend(exps)
+                logger.info(
+                    f"[{task_id}] {crawler.name} 爬取完成，获取 {len(exps)} 条{data_type_label}"
+                )
             except Exception:
-                # 单个来源爬取失败不影响其他来源，静默跳过
-                pass
+                logger.warning(f"[{task_id}] {source_key} 爬取失败", exc_info=True)
             finally:
                 # 确保关闭爬虫的 HTTP 客户端，释放连接池资源
                 if crawler:
@@ -585,15 +605,22 @@ async def _run_analysis_inner(task_id: str, req: AnalyzeRequest):
 
             task["progress"] = 10 + (idx + 1) * progress_per_source
 
-        # 如果所有来源都未爬取到面经，提前结束任务
+        crawl_elapsed = time.time() - crawl_start
+        logger.info(
+            f"[{task_id}] 数据爬取全部完成，共获取 {len(all_experiences)} 条，耗时 {crawl_elapsed:.1f}s"
+        )
+
         if not all_experiences:
+            logger.warning(f"[{task_id}] 所有来源均未爬取到数据")
             task["status"] = "completed"
             task["progress"] = 100
-            task["result"] = {"error": "未找到相关面经，请尝试其他搜索词或来源"}
+            task["result"] = {
+                "error": "未找到相关面经或岗位信息，请尝试其他搜索词或来源"
+            }
             task["finished_at"] = time.time()
             return
 
-        task["message"] = f"共获取 {len(all_experiences)} 条面经，正在分析..."
+        task["message"] = f"共获取 {len(all_experiences)} 条数据，正在分析..."
         task["progress"] = 55
 
         # Step 3: 执行用户选择的分析模块
@@ -610,6 +637,8 @@ async def _run_analysis_inner(task_id: str, req: AnalyzeRequest):
 
         # 只执行用户选择的分析模块，过滤掉无效的模块名
         selected = [m for m in req.modules if m in analyzers]
+        analysis_start = time.time()
+        logger.info(f"[{task_id}] 开始执行分析模块: {selected}")
         # 将 55% → 90% 的进度（共 35%）按模块数量平均分配
         progress_per_module = 35 // max(len(selected), 1)
         step_progress = 0
@@ -617,12 +646,15 @@ async def _run_analysis_inner(task_id: str, req: AnalyzeRequest):
         for module_key in selected:
             analyzer = analyzers[module_key]
             task["message"] = f"正在执行: {analyzer.name}"
-            # 每个分析器返回结构化的 JSON 结果，前端直接渲染
             result["modules"][module_key] = await analyzer.analyze(
                 all_experiences, req.resume_text
             )
+            logger.info(f"[{task_id}] {analyzer.name} 分析完成")
             step_progress += progress_per_module
             task["progress"] = 55 + step_progress
+
+        analysis_elapsed = time.time() - analysis_start
+        logger.info(f"[{task_id}] 分析模块全部完成，耗时 {analysis_elapsed:.1f}s")
 
         task["progress"] = 90
         task["message"] = "正在整理报告..."
@@ -635,10 +667,10 @@ async def _run_analysis_inner(task_id: str, req: AnalyzeRequest):
         task["finished_at"] = time.time()
 
     except Exception as e:
-        # 任何未捕获的异常都标记任务为失败
         task["status"] = "failed"
         task["error"] = str(e)
         task["finished_at"] = time.time()
+        logger.error(f"[{task_id}] 分析任务异常: {e}", exc_info=True)
     finally:
         # 确保关闭 AI 客户端的 HTTP 连接，无论成功或失败
         if ai_client:

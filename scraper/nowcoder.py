@@ -6,9 +6,13 @@
 使用 BeautifulSoup 解析 HTML 页面内容。
 """
 
+import logging
+
 from bs4 import BeautifulSoup
 
 from scraper.base import BaseCrawler
+
+logger = logging.getLogger(__name__)
 
 
 class NowCrawler(BaseCrawler):
@@ -18,12 +22,14 @@ class NowCrawler(BaseCrawler):
 
     BASE_URL = "https://www.nowcoder.com"
     SEARCH_URL = f"{BASE_URL}/search"
+    SITE_DOMAIN = "nowcoder.com"
+    EXTRA_KEYWORDS = "面经 面试"
 
     @property
     def name(self) -> str:
         return "牛客网"
 
-    async def search(self, query: str, max_count: int = 10) -> list[dict]:
+    async def _search_direct(self, query: str, max_count: int = 10) -> list[dict]:
         results = []
         page = 1
 
@@ -50,6 +56,19 @@ class NowCrawler(BaseCrawler):
             await self.sleep()
 
         return results[:max_count]
+
+    async def search(self, query: str, max_count: int = 10) -> list[dict]:
+        try:
+            results = await self._search_direct(query, max_count)
+            if results:
+                return results
+            logger.info("[%s] 直接搜索无结果，降级到 Tavily", self.name)
+        except Exception as e:
+            logger.warning("[%s] 直接搜索失败(%s)，降级到 Tavily", self.name, e)
+
+        return await self._search_via_tavily(
+            query, self.SITE_DOMAIN, max_count, self.EXTRA_KEYWORDS
+        )
 
     def _parse_search_results(self, soup: BeautifulSoup) -> list[dict]:
         items = []

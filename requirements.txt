@@ -6,3 +6,5 @@ lxml>=5.1.0
 PyMuPDF>=1.24.0
 pydantic>=2.0.0
 slowapi>=0.1.9
+scrapling[all]>=0.4.0
+tavily-python>=0.5.0

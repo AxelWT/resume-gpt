@@ -49,17 +49,29 @@ class BaseAnalyzer(ABC):
 
     def _format_experiences(self, experiences: list[dict]) -> str:
         """
-        将面经列表格式化为 AI 可读的文本。
+        将面经/岗位描述列表格式化为 AI 可读的文本。
+
+        根据 type 字段区分数据类型：
+        - "interview": 面经，显示为 "--- 面经 N ---"
+        - "job_description": 岗位描述，显示为 "--- 岗位描述 N ---"
 
         Args:
-            experiences: 面经列表，每条包含 title、tags、content
+            experiences: 数据列表，每条包含 title、tags、content、type
 
         Returns:
-            格式化后的文本字符串，每条面经截取前 2000 字符
+            格式化后的文本字符串，每条内容截取前 2000 字符
         """
+        interview_idx = 0
+        job_desc_idx = 0
         lines = []
-        for i, exp in enumerate(experiences, 1):
-            lines.append(f"--- 面经 {i} ---")
+        for exp in experiences:
+            exp_type = exp.get("type", "interview")
+            if exp_type == "job_description":
+                job_desc_idx += 1
+                lines.append(f"--- 岗位描述 {job_desc_idx} ---")
+            else:
+                interview_idx += 1
+                lines.append(f"--- 面经 {interview_idx} ---")
             lines.append(f"标题: {exp.get('title', '')}")
             lines.append(f"标签: {', '.join(exp.get('tags', []))}")
             lines.append(f"内容:\n{exp.get('content', '')[:2000]}")
