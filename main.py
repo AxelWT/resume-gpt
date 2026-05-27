@@ -315,6 +315,42 @@ class UploadResumeRequest(BaseModel):
 # 用户无需手动填写，降低使用门槛
 PREMIUM_MODEL = "deepseek-v4-flash"
 
+# 允许的 API 基础地址白名单（防止 SSRF 攻击）
+# 用户提供的 base_url 必须以白名单中的某个前缀开头
+ALLOWED_API_PREFIXES = [
+    "https://api.deepseek.com",
+    "https://api.openai.com",
+    "https://api.anthropic.com",
+    "https://api.moonshot.cn",
+    "https://api.siliconflow.cn",
+    "https://dashscope.aliyuncs.com",
+    "https://open.bigmodel.cn",
+    "http://localhost",
+    "http://127.0.0.1",
+]
+
+
+def validate_base_url(base_url: str) -> str:
+    """
+    校验 API 基础地址是否在白名单内，防止 SSRF 攻击。
+
+    Args:
+        base_url: 用户提供的 API 基础地址
+
+    Returns:
+        校验通过的原始地址
+
+    Raises:
+        HTTPException 400: 地址不在白名单内
+    """
+    normalized = base_url.rstrip("/")
+    if not any(normalized.startswith(prefix) for prefix in ALLOWED_API_PREFIXES):
+        raise HTTPException(
+            status_code=400,
+            detail=f"不支持的 API 地址，仅允许: {', '.join(p.split('//')[1] for p in ALLOWED_API_PREFIXES if '//' in p)}",
+        )
+    return normalized
+
 
 def resolve_api_key(api_key: Optional[str], model_name: str) -> str:
     """
@@ -366,6 +402,7 @@ async def test_config(request: Request, req: TestConfigRequest):
     """
     client = None
     try:
+        validate_base_url(req.base_url)
         api_key = resolve_api_key(req.api_key, req.model_name)
         client = AIClient(req.base_url, api_key, req.model_name)
         await client.test()
@@ -433,6 +470,7 @@ async def start_analyze(request: Request, req: AnalyzeRequest):
 
     限流：10 次/分钟/IP（分析接口消耗 AI 调用额度和爬虫资源，严格限流）
     """
+    validate_base_url(req.base_url)
     resolve_api_key(req.api_key, req.model_name)
 
     # 生成唯一的任务 ID（取 UUID 的 hex 形式前 12 位，如 "a3f1b2c4d5e6"）
@@ -544,8 +582,9 @@ async def _run_analysis_inner(task_id: str, req: AnalyzeRequest):
         task["progress"] = 5
 
         # Step 1: 初始化 AI 客户端并验证连接
+        validated_url = validate_base_url(req.base_url)
         ai_client = AIClient(
-            req.base_url, resolve_api_key(req.api_key, req.model_name), req.model_name
+            validated_url, resolve_api_key(req.api_key, req.model_name), req.model_name
         )
         await ai_client.test()
         task["progress"] = 10
