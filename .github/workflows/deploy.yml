@@ -35,16 +35,6 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
 
-      - name: Build and push nginx image
-        uses: docker/build-push-action@v6.18.0
-        with:
-          context: .
-          file: nginx/Dockerfile
-          push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-nginx:latest
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-nginx:${{ github.sha }}
-
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest

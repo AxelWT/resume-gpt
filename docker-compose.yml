@@ -1,25 +1,10 @@
 services:
   app:
     image: crpi-fmn9v2rn38d84ou1.cn-shanghai.personal.cr.aliyuncs.com/axelwt/resume-gpt:latest
-    expose:
-      - "8000"
+    ports:
+      - "8000:8000"
     restart: unless-stopped
     env_file:
       - .env
     environment:
       - TZ=Asia/Shanghai
-    networks:
-      - backend
-
-  nginx:
-    image: crpi-fmn9v2rn38d84ou1.cn-shanghai.personal.cr.aliyuncs.com/axelwt/resume-gpt-nginx:latest
-    ports:
-      - "80:80"
-    depends_on:
-      - app
-    restart: unless-stopped
-    networks:
-      - backend
-
-networks:
-  backend:
