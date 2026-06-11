@@ -792,6 +792,7 @@ async def index():
 
 
 @app.get("/favicon.ico")
+@app.get("/favicon.svg")
 async def favicon():
     """
     返回 SVG 格式的 favicon。
